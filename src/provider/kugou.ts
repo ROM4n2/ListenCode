@@ -108,7 +108,7 @@ export async function getPlaylistTracks(playlistId: string): Promise<{ info: any
   };
 
   const tracks = (data.list.list.info ?? []).map((item) => ({
-    id: `kgtrack_${item.FileHash}`,
+    id: `kghash_${item.FileHash}`,
     title: item.SongName,
     artist: item.SingerName,
     album: item.AlbumName,
