@@ -69,16 +69,18 @@ export async function searchPlatform(platform: Platform, keyword: string): Promi
   return PROVIDERS[platform].search(keyword);
 }
 
-export async function resolvePlayUrl(trackId: string): Promise<string | null> {
+export async function resolvePlayUrl(trackId: string): Promise<{ url: string | null; cookie: string }> {
   const platform = getProviderByTrackId(trackId);
-  if (!platform) {return null;}
-  return PROVIDERS[platform].getPlayUrl(trackId);
+  if (!platform) {return { url: null, cookie: '' };}
+  const url = await PROVIDERS[platform].getPlayUrl(trackId);
+  const cookie = require('./http').getCookie(platform);
+  return { url, cookie };
 }
 
 export async function preCheckPlayable(tracks: Track[]): Promise<Map<string, boolean>> {
   const results = await Promise.allSettled(
     tracks.map(async (track) => {
-      const url = await resolvePlayUrl(track.id);
+      const { url } = await resolvePlayUrl(track.id);
       return [track.id, url !== null && url !== ''] as [string, boolean];
     })
   );

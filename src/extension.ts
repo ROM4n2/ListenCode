@@ -237,12 +237,12 @@ async function handleWebviewMessage(webview: vscode.Webview, msg: WebviewRequest
         webview.postMessage({ type: 'error', message: '该歌曲因版权原因无法播放' });
         break;
       }
-      const url = await resolvePlayUrl(msg.track.id);
+      const { url, cookie } = await resolvePlayUrl(msg.track.id);
       // 若获取不到地址，记录为不可播
       if (!url) {
         playableStatus.set(msg.track.id, false);
       }
-      webview.postMessage({ type: 'player:resolve', url, track: msg.track });
+      webview.postMessage({ type: 'player:resolve', url, cookie, track: msg.track });
       break;
     }
     case 'playlist:create': {
