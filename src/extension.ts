@@ -1,5 +1,5 @@
 import * as vscode from 'vscode';
-import { CookieManager } from './cookie';
+import { CookieManager, parseCookieInput } from './cookie';
 import { PlaylistManager } from './playlist';
 import { searchAll } from './search';
 import { resolvePlayUrl, preCheckPlayable } from './provider';
@@ -99,8 +99,9 @@ export function activate(context: vscode.ExtensionContext) {
     if (!raw) {return;}
 
     try {
-      cookieManager.importCookie(platform.value as Platform, raw);
-      updateCookie(platform.value as Platform, raw);
+      const parsed = parseCookieInput(raw);
+      cookieManager.importCookie(platform.value as Platform, parsed);
+      updateCookie(platform.value as Platform, parsed);
       vscode.window.showInformationMessage(`${platform.label} Cookie 导入成功`);
     } catch (e) {
       vscode.window.showErrorMessage(`导入失败: ${e}`);
@@ -230,8 +231,9 @@ async function handleWebviewMessage(webview: vscode.Webview, msg: WebviewRequest
     }
     case 'cookie:import': {
       try {
-        cookieManager.importCookie(msg.platform as any, msg.raw);
-        updateCookie(msg.platform as any, msg.raw);
+        const parsed = parseCookieInput(msg.raw);
+        cookieManager.importCookie(msg.platform as any, parsed);
+        updateCookie(msg.platform as any, parsed);
         webview.postMessage({ type: 'cookie:status', platform: msg.platform, valid: true });
       } catch (e: any) {
         webview.postMessage({ type: 'error', message: e.message });
