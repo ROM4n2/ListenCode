@@ -1,16 +1,13 @@
 import * as vscode from 'vscode';
 import * as fs from 'fs';
-import * as path from 'path';
-import * as os from 'os';
-import axios from 'axios';
 import { CookieManager, parseCookieInput } from './cookie';
 import { PlaylistManager } from './playlist';
 import { searchAll } from './search';
 import { resolvePlayUrl, preCheckPlayable, getUserPlaylists, getPlaylistTracks } from './provider';
-import { updateCookie, getCookie } from './provider/http';
+import { updateCookie } from './provider/http';
 import { WebviewRequest, Track, Playlist, Platform } from './types';
 import { getHistory, addHistory } from './search-history';
-import { startLocalServer } from './server';
+import { startAudioServer, getAudioUrl } from './audio-server';
 
 let cookieManager: CookieManager;
 let playlistManager: PlaylistManager;
@@ -34,8 +31,8 @@ export function activate(context: vscode.ExtensionContext) {
   context.subscriptions.push(statusBarItem);
 
   // 注册打开播放器命令
-  const openPlayerCmd = vscode.commands.registerCommand('listencode.openPlayer', () => {
-    const panel = createPlayerPanel(context);
+  const openPlayerCmd = vscode.commands.registerCommand('listencode.openPlayer', async () => {
+    const panel = await createPlayerPanel(context);
 
     panel.webview.onDidReceiveMessage(async (msg: WebviewRequest) => {
       handleWebviewMessage(panel.webview, msg);
@@ -67,7 +64,7 @@ export function activate(context: vscode.ExtensionContext) {
     }
 
     // 打开面板并通知自动播放
-    const panel = createPlayerPanel(context);
+    const panel = await createPlayerPanel(context);
     panel.webview.onDidReceiveMessage(async (msg: WebviewRequest) => {
       handleWebviewMessage(panel.webview, msg);
     });
@@ -209,11 +206,14 @@ export function activate(context: vscode.ExtensionContext) {
   context.subscriptions.push(openPlayerCmd, quickPlayCmd, togglePlayCmd, loginCmd, importCookieCmd, exportPlaylistsCmd, importPlaylistsCmd);
 }
 
-function createPlayerPanel(context: vscode.ExtensionContext): vscode.WebviewPanel {
+async function createPlayerPanel(context: vscode.ExtensionContext): Promise<vscode.WebviewPanel> {
   if (activePanel) {
     activePanel.reveal(vscode.ViewColumn.One);
     return activePanel;
   }
+
+  // 启动音频代理服务器，获取端口
+  const audioPort = await startAudioServer();
 
   const panel = vscode.window.createWebviewPanel(
     'listencode.player',
@@ -225,6 +225,7 @@ function createPlayerPanel(context: vscode.ExtensionContext): vscode.WebviewPane
       localResourceRoots: [
         vscode.Uri.joinPath(context.extensionUri, 'media'),
       ],
+      portMapping: [{ webviewPort: audioPort, extensionHostPort: audioPort }],
     }
   );
 
@@ -302,15 +303,13 @@ async function handleWebviewMessage(webview: vscode.Webview, msg: WebviewRequest
         webview.postMessage({ type: 'player:resolve', url: null, cookie: '', track: msg.track });
         break;
       }
-      // 下载到本地 → 通过本地 HTTP 服务器提供，避免 CDN 跨域/IP 绑定
+      // 通过本地音频代理服务器流式传输（WebView 通过 portMapping 访问）
       try {
-        const localPath = await downloadAudio(url, cookie, msg.track.id);
-        const serverUrl = await startLocalServer();
-        const fileName = `${msg.track.id}${path.extname(url).split('?')[0] || '.mp4'}`;
-        const webUrl = `${serverUrl}/${encodeURIComponent(fileName)}`;
-        webview.postMessage({ type: 'player:resolve', url: webUrl, cookie, track: msg.track });
+        await startAudioServer();
+        const audioUrl = getAudioUrl(msg.track.id);
+        webview.postMessage({ type: 'player:resolve', url: audioUrl, cookie, track: msg.track });
       } catch (e) {
-        // 下载失败，回退到原始 URL
+        // 失败回退到原始 URL
         webview.postMessage({ type: 'player:resolve', url, cookie, track: msg.track });
       }
       break;
@@ -402,43 +401,6 @@ async function handleWebviewMessage(webview: vscode.Webview, msg: WebviewRequest
       vscode.commands.executeCommand('listencode.login');
       break;
   }
-}
-
-// 下载音频到本地临时文件，避免 CDN 跨域/IP 绑定问题
-async function downloadAudio(url: string, cookie: string, trackId: string): Promise<string> {
-  const tmpDir = path.join(os.tmpdir(), 'listencode');
-  if (!fs.existsSync(tmpDir)) {
-    fs.mkdirSync(tmpDir, { recursive: true });
-  }
-  const ext = (url.match(/\.(\w+)(\?|$)/)?.[1] || 'mp4').toLowerCase();
-  const localPath = path.join(tmpDir, `${trackId}.${ext}`);
-
-  // 已下载则直接返回
-  if (fs.existsSync(localPath)) {
-    return localPath;
-  }
-
-  const headers: Record<string, string> = { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36' };
-  if (cookie) { headers['Cookie'] = cookie; }
-  if (url.includes('bilibili') || url.includes('bilivideo')) {
-    headers['Referer'] = 'https://www.bilibili.com/';
-  }
-
-  const response = await axios.get(url, {
-    responseType: 'stream',
-    headers,
-    timeout: 60000,
-    // 网易云 MP3 大约 3-15MB，B站视频可能更大
-    maxContentLength: 100 * 1024 * 1024,
-  });
-
-  const writer = fs.createWriteStream(localPath);
-  response.data.pipe(writer);
-
-  return new Promise((resolve, reject) => {
-    writer.on('finish', () => resolve(localPath));
-    writer.on('error', reject);
-  });
 }
 
 function getLoginHtml(extensionUri: vscode.Uri, platform: string): string {
