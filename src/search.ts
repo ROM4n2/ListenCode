@@ -1,5 +1,5 @@
 import { Track, Platform } from './types';
-import { searchPlatform, preCheckPlayable } from './provider';
+import { searchPlatform } from './provider';
 import { getEnabledSources } from './settings';
 
 export async function searchAll(
@@ -21,13 +21,4 @@ export async function searchAll(
     }
   }
   return tracks;
-}
-
-export async function searchWithPreCheck(
-  keyword: string,
-  platforms: Platform[]
-): Promise<{ tracks: Track[]; preCheck: Map<string, boolean> }> {
-  const tracks = await searchAll(keyword, platforms);
-  const preCheck = await preCheckPlayable(tracks.slice(0, 10));
-  return { tracks, preCheck };
 }

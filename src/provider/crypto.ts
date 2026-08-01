@@ -1,4 +1,5 @@
 import forge from 'node-forge';
+import * as crypto from 'crypto';
 
 function aesEncrypt(text: string, key: string, mode: 'CBC' | 'ECB', iv?: string): string {
   const cipher = forge.cipher.createCipher(
@@ -40,13 +41,13 @@ function rsaEncrypt(text: string, pubKey: string, modulus: string): string {
 }
 
 function createSecretKey(size: number): string {
-  const choice = '012345679abcdef'.split('');
-  const result: string[] = [];
+  const choice = '012345679abcdef';
+  const bytes = crypto.randomBytes(size);
+  let result = '';
   for (let i = 0; i < size; i += 1) {
-    const index = Math.floor(Math.random() * choice.length);
-    result.push(choice[index]);
+    result += choice[bytes[i] % choice.length];
   }
-  return result.join('');
+  return result;
 }
 
 const NE_MODULUS =

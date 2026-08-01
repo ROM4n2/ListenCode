@@ -29,7 +29,6 @@ export const PLATFORM_LABELS: Record<Platform, string> = {
 export type WebviewRequest =
   | { type: 'search'; keyword: string; sources: string[] }
   | { type: 'play'; track: Track }
-  | { type: 'control'; action: 'pause' | 'next' | 'prev' | 'seek' | 'volume'; value?: number }
   | { type: 'playlist:create'; name: string }
   | { type: 'playlist:add'; playlistId: string; track: Track }
   | { type: 'playlist:createAndAdd'; name: string; track: Track }

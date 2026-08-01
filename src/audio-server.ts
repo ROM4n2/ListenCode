@@ -33,10 +33,6 @@ function cleanupCache(): void {
   }
 }
 
-export function getAudioServerPort(): number {
-  return port;
-}
-
 export function startAudioServer(): Promise<number> {
   if (server) {return Promise.resolve(port);}
 

@@ -97,7 +97,7 @@ export async function getPlayUrl(trackId: string): Promise<string | null> {
   const purl = vkeyResp.data.req_0?.data?.midurlinfo?.[0]?.purl;
   if (!purl) {return null;}
 
-  return `http://ws.stream.qqmusic.qq.com/${purl}`;
+  return `https://ws.stream.qqmusic.qq.com/${purl}`;
 }
 
 interface QQUserPlaylistResponse {
