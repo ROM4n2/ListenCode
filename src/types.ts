@@ -38,9 +38,8 @@ export type WebviewRequest =
   | { type: 'playlists:export' }
   | { type: 'playlists:import' }
   | { type: 'cookie:import'; platform: string; raw: string }
-  | { type: 'login:needManual'; platform: string }
-  | { type: 'login:success'; cookie: string; platform: string }
-  | { type: 'login:timeout'; platform: string }
+  | { type: 'login:openUrl'; url: string; platform: string }
+  | { type: 'login:paste'; platform: string }
   | { type: 'player:state'; playing: boolean; track: Track | null }
   | { type: 'search:loadHistory' }
   | { type: 'mode:set'; mode: string }

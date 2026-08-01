@@ -1,10 +1,13 @@
 import * as vscode from 'vscode';
 import * as fs from 'fs';
+import * as path from 'path';
+import * as os from 'os';
+import axios from 'axios';
 import { CookieManager, parseCookieInput } from './cookie';
 import { PlaylistManager } from './playlist';
 import { searchAll } from './search';
 import { resolvePlayUrl, preCheckPlayable, getUserPlaylists, getPlaylistTracks } from './provider';
-import { updateCookie } from './provider/http';
+import { updateCookie, getCookie } from './provider/http';
 import { WebviewRequest, Track, Playlist, Platform } from './types';
 import { getHistory, addHistory } from './search-history';
 
@@ -142,28 +145,15 @@ export function activate(context: vscode.ExtensionContext) {
     panel.webview.html = getLoginHtml(context.extensionUri, platform.value);
 
     panel.webview.onDidReceiveMessage(async (msg) => {
-      if (msg.type === 'login:success') {
-        try {
-          const parsed = parseCookieInput(msg.cookie);
-          cookieManager.importCookie(msg.platform as Platform, parsed);
-          updateCookie(msg.platform as Platform, parsed);
-          panel.dispose();
-          vscode.window.showInformationMessage(`${platform.label} 登录成功`);
-          if (activePanel) {
-            activePanel.webview.postMessage({
-              type: 'cookie:status',
-              status: cookieManager.getAllStatus(),
-            });
-          }
-        } catch (e) {
-          vscode.window.showErrorMessage(`登录失败: ${e}`);
-        }
-      } else if (msg.type === 'login:needManual') {
+      if (msg.type === 'login:openUrl') {
+        // 在系统浏览器中打开登录页
+        vscode.env.openExternal(vscode.Uri.parse(msg.url));
+      } else if (msg.type === 'login:paste') {
+        // 用户粘贴 cookie
         panel.dispose();
-        // 跨域无法自动读取 cookie，回退到手动导入
         const raw = await vscode.window.showInputBox({
-          placeHolder: '请在浏览器 F12 → Console 运行 copy(document.cookie)，然后粘贴到这里',
-          prompt: `${platform.label} - 手动导入 Cookie`,
+          placeHolder: '在浏览器 F12 → Console 运行 copy(document.cookie)，粘贴到这里',
+          prompt: `${platform.label} - 导入 Cookie`,
           ignoreFocusOut: true,
         });
         if (raw) {
@@ -171,7 +161,7 @@ export function activate(context: vscode.ExtensionContext) {
             const parsed = parseCookieInput(raw);
             cookieManager.importCookie(msg.platform as Platform, parsed);
             updateCookie(msg.platform as Platform, parsed);
-            vscode.window.showInformationMessage(`${platform.label} Cookie 导入成功`);
+            vscode.window.showInformationMessage(`${platform.label} 登录成功`);
             if (activePanel) {
               activePanel.webview.postMessage({
                 type: 'cookie:status',
@@ -182,9 +172,6 @@ export function activate(context: vscode.ExtensionContext) {
             vscode.window.showErrorMessage(`导入失败: ${e}`);
           }
         }
-      } else if (msg.type === 'login:timeout') {
-        panel.dispose();
-        vscode.window.showWarningMessage('登录超时，请重试');
       }
     });
   });
@@ -309,11 +296,19 @@ async function handleWebviewMessage(webview: vscode.Webview, msg: WebviewRequest
         break;
       }
       const { url, cookie } = await resolvePlayUrl(msg.track.id);
-      // 若获取不到地址，记录为不可播
       if (!url) {
         playableStatus.set(msg.track.id, false);
+        webview.postMessage({ type: 'player:resolve', url: null, cookie: '', track: msg.track });
+        break;
       }
-      webview.postMessage({ type: 'player:resolve', url, cookie, track: msg.track });
+      // 下载到本地临时文件，避免 CDN 跨域/IP 绑定问题
+      try {
+        const localUrl = await downloadAudio(url, cookie, msg.track.id);
+        webview.postMessage({ type: 'player:resolve', url: localUrl, cookie, track: msg.track });
+      } catch (e) {
+        // 下载失败，回退到原始 URL
+        webview.postMessage({ type: 'player:resolve', url, cookie, track: msg.track });
+      }
       break;
     }
     case 'playlist:create': {
@@ -403,6 +398,41 @@ async function handleWebviewMessage(webview: vscode.Webview, msg: WebviewRequest
       vscode.commands.executeCommand('listencode.login');
       break;
   }
+}
+
+// 下载音频到本地临时文件，避免 CDN 跨域/IP 绑定问题
+async function downloadAudio(url: string, cookie: string, trackId: string): Promise<string> {
+  const tmpDir = path.join(os.tmpdir(), 'listencode');
+  if (!fs.existsSync(tmpDir)) {
+    fs.mkdirSync(tmpDir, { recursive: true });
+  }
+  const ext = url.match(/\.(\w+)(\?|$)/)?.[1] || 'mp4';
+  const localPath = path.join(tmpDir, `${trackId}.${ext}`);
+
+  // 已下载则直接返回
+  if (fs.existsSync(localPath)) {
+    return localPath;
+  }
+
+  const headers: Record<string, string> = { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36' };
+  if (cookie) { headers['Cookie'] = cookie; }
+  if (url.includes('bilibili') || url.includes('bilivideo')) {
+    headers['Referer'] = 'https://www.bilibili.com/';
+  }
+
+  const response = await axios.get(url, {
+    responseType: 'stream',
+    headers,
+    timeout: 30000,
+  });
+
+  const writer = fs.createWriteStream(localPath);
+  response.data.pipe(writer);
+
+  return new Promise((resolve, reject) => {
+    writer.on('finish', () => resolve(localPath));
+    writer.on('error', reject);
+  });
 }
 
 function getLoginHtml(extensionUri: vscode.Uri, platform: string): string {
