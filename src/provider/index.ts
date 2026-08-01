@@ -19,7 +19,6 @@ export const neteaseQR = {
 };
 export const bilibiliQR = {
   getKey: bilibili.getQRCodeKey,
-  getUrl: bilibili.getQRCodeUrl,
   poll: bilibili.pollQRCodeStatus,
 };
 

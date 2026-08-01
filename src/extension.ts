@@ -172,8 +172,18 @@ export function activate(context: vscode.ExtensionContext) {
         }
       } else if (msg.type === 'login:start') {
         try {
-          qrKey = await qr.getKey();
-          const qrText = qr.getUrl(qrKey);
+          const qrResult = await qr.getKey();
+          let qrKey: string;
+          let qrText: string;
+          if (typeof qrResult === 'string') {
+            // 网易云：返回 key，用 getUrl 构造 URL
+            qrKey = qrResult;
+            qrText = (qr as any).getUrl(qrKey);
+          } else {
+            // B站：返回 {key, url}
+            qrKey = qrResult.key;
+            qrText = qrResult.url;
+          }
           // 在扩展端生成二维码图片 Data URL
           const dataUrl = await generateQRDataUrl(qrText);
           panel.webview.postMessage({ type: 'login:qrcode', url: dataUrl, key: qrKey });
