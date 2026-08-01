@@ -399,12 +399,14 @@ input[type="range"]::-webkit-slider-thumb {
 
 /* 视频播放器（实际只播放音频） */
 #audioPlayer {
-  position: absolute;
-  width: 0;
-  height: 0;
-  overflow: hidden;
-  opacity: 0;
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  width: 1px;
+  height: 1px;
+  opacity: 0.01;
   pointer-events: none;
+  z-index: -1;
 }
 
 /* 错误提示 toast */

@@ -127,6 +127,19 @@
     playNext();
   });
 
+  audioPlayer.addEventListener('error', () => {
+    console.log('Video error:', audioPlayer.error?.code, audioPlayer.error?.message);
+    showError('播放错误: ' + (audioPlayer.error?.message || '未知错误'));
+  });
+
+  audioPlayer.addEventListener('playing', () => {
+    console.log('Video playing');
+  });
+
+  audioPlayer.addEventListener('canplay', () => {
+    console.log('Video canplay, duration:', audioPlayer.duration);
+  });
+
   progressBar.addEventListener('input', () => {
     if (audioPlayer.duration) {
       audioPlayer.currentTime = (progressBar.value / 100) * audioPlayer.duration;
@@ -329,17 +342,14 @@
         break;
       case 'player:resolve':
         if (msg.url) {
-          const playSrc = (src) => {
-            audioPlayer.src = src;
-            audioPlayer.play().then(() => {
-              playPauseBtn.textContent = '⏸';
-              sendPlayerState(true);
-            }).catch((err) => {
-              showError('播放失败: ' + err.message);
-            });
-          };
-          // blob 加载（带 cookie 解决 B站 CDN 防盗链），失败回退直接 src
-          loadAudioBlob(msg.url, msg.cookie).then(blobUrl => playSrc(blobUrl)).catch(() => playSrc(msg.url));
+          // 直接使用 URL（localhost 或原始 URL）
+          audioPlayer.src = msg.url;
+          audioPlayer.play().then(() => {
+            playPauseBtn.textContent = '⏸';
+            sendPlayerState(true);
+          }).catch((err) => {
+            showError('播放失败: ' + err.message);
+          });
         } else {
           // 付费/版权失败，自动跳过下一首
           if (currentPlaylist.length > 1) {
@@ -475,16 +485,6 @@
   }
 
   // 错误提示（不覆盖搜索结果，用临时 toast）
-  // 用 blob 加载音频（带 cookie 解决 B站 CDN 防盗链）
-  function loadAudioBlob(url, cookie) {
-    const headers = { 'Referer': 'https://www.bilibili.com/' };
-    if (cookie) { headers['Cookie'] = cookie; }
-    return fetch(url, { headers }).then(res => {
-      if (!res.ok) {throw new Error('HTTP ' + res.status);}
-      return res.blob();
-    }).then(blob => URL.createObjectURL(blob));
-  }
-
   function showError(message) {
     const toast = document.createElement('div');
     toast.className = 'error-toast';
