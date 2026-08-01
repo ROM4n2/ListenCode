@@ -153,12 +153,15 @@
   function togglePlayPause() {
     if (!currentTrack) {return;}
     if (audioPlayer.paused) {
-      audioPlayer.play().then(() => {
-        playPauseBtn.textContent = '⏸';
-        sendPlayerState(true);
-      }).catch((err) => {
-        showError('播放失败: ' + err.message);
-      });
+      var p = audioPlayer.play();
+      if (p && p.then) {
+        p.then(() => {
+          playPauseBtn.textContent = '⏸';
+          sendPlayerState(true);
+        }).catch(() => {
+          // play() 被 pause() 中断是正常的，忽略
+        });
+      }
     } else {
       audioPlayer.pause();
       playPauseBtn.textContent = '▶';
@@ -342,14 +345,18 @@
         break;
       case 'player:resolve':
         if (msg.url) {
-          // 直接使用 URL（localhost 或原始 URL）
+          // 暂停当前播放 → 设置新 URL → 播放
+          audioPlayer.pause();
           audioPlayer.src = msg.url;
-          audioPlayer.play().then(() => {
-            playPauseBtn.textContent = '⏸';
-            sendPlayerState(true);
-          }).catch((err) => {
-            showError('播放失败: ' + err.message);
-          });
+          var p = audioPlayer.play();
+          if (p && p.then) {
+            p.then(() => {
+              playPauseBtn.textContent = '⏸';
+              sendPlayerState(true);
+            }).catch(() => {
+              // play() 被中断是正常的，忽略
+            });
+          }
         } else {
           // 付费/版权失败，自动跳过下一首
           if (currentPlaylist.length > 1) {
