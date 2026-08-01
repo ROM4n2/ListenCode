@@ -87,15 +87,14 @@ interface NeteaseSongDetailResponse {
 }
 
 export async function search(keyword: string, limit = 20): Promise<Track[]> {
-  const url = 'https://music.163.com/weapi/search/get';
-  const data = weapi({
+  // 用公开搜索接口（和 Listen1 一致），不走 weapi
+  const url = 'https://music.163.com/api/search/pc';
+  const response = await client.post<NeteaseSearchResponse>(url, new URLSearchParams({
     s: keyword,
-    offset: 0,
-    limit,
-    type: 1,
-  });
-
-  const response = await client.post<NeteaseSearchResponse>(url, new URLSearchParams(data).toString(), {
+    offset: '0',
+    limit: String(limit),
+    type: '1',
+  }).toString(), {
     headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
   });
 

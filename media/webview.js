@@ -57,8 +57,11 @@
   searchInput.addEventListener('keydown', (e) => {
     if (e.key === 'Enter') {doSearch();}
   });
-  searchInput.addEventListener('focus', () => {
-    vscode.postMessage({ type: 'search:loadHistory' });
+  // 输入时才显示历史（不是 focus），避免挡住搜索结果
+  searchInput.addEventListener('input', () => {
+    if (searchInput.value.trim() === '') {
+      vscode.postMessage({ type: 'search:loadHistory' });
+    }
   });
 
   // 搜索历史下拉
@@ -68,7 +71,8 @@
   document.querySelector('.search-bar').appendChild(historyDropdown);
 
   function showHistoryDropdown(history) {
-    if (!history || history.length === 0) {
+    // 输入框有内容时不下拉（避免和搜索结果混淆）
+    if (!history || history.length === 0 || searchInput.value.trim() !== '') {
       historyDropdown.style.display = 'none';
       return;
     }
@@ -310,6 +314,7 @@
     const msg = event.data;
     switch (msg.type) {
       case 'search:result':
+        historyDropdown.style.display = 'none';
         renderTracks(msg.tracks);
         break;
       case 'player:status':
@@ -447,8 +452,17 @@
     playPauseBtn.textContent = status.playing ? '⏸' : '▶';
   }
 
+  // 错误提示（不覆盖搜索结果，用临时 toast）
   function showError(message) {
-    searchResults.innerHTML = `<div class="empty-state" style="color:#f44336">错误: ${escapeHtml(message)}</div>`;
+    const toast = document.createElement('div');
+    toast.className = 'error-toast';
+    toast.textContent = message;
+    document.body.appendChild(toast);
+    setTimeout(() => toast.classList.add('show'), 10);
+    setTimeout(() => {
+      toast.classList.remove('show');
+      setTimeout(() => toast.remove(), 300);
+    }, 3000);
   }
 
   function formatTime(seconds) {
