@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ListenCode</title>
+  <link rel="stylesheet" href="webview.css">
+</head>
+<body>
+  <div id="app">
+    <!-- 搜索栏 -->
+    <div class="search-bar">
+      <input type="text" id="searchInput" placeholder="搜索歌曲..." />
+      <select id="platformSelect">
+        <option value="all">全部平台</option>
+        <option value="netease">网易云音乐</option>
+        <option value="qq">QQ音乐</option>
+        <option value="kugou">酷狗音乐</option>
+        <option value="bilibili">B站</option>
+      </select>
+      <button id="searchBtn">搜索</button>
+    </div>
+
+    <!-- Cookie 状态 -->
+    <div class="cookie-status" id="cookieStatus"></div>
+
+    <!-- 搜索结果 -->
+    <div class="search-results" id="searchResults">
+      <div class="empty-state">输入关键词搜索歌曲</div>
+    </div>
+
+    <!-- 歌单面板 -->
+    <div class="playlist-panel">
+      <div class="playlist-header">
+        <span>我的歌单</span>
+        <button id="newPlaylistBtn" class="btn-small">+ 新建</button>
+      </div>
+      <div class="playlist-list" id="playlistList"></div>
+    </div>
+
+    <!-- 播放控制栏 -->
+    <div class="player-bar">
+      <div class="player-info">
+        <span id="currentTrackTitle">未播放</span>
+        <span id="currentTrackArtist" class="artist"></span>
+      </div>
+      <div class="player-controls">
+        <button id="prevBtn" class="btn-icon" title="上一首">⏮</button>
+        <button id="playPauseBtn" class="btn-icon" title="播放/暂停">▶</button>
+        <button id="nextBtn" class="btn-icon" title="下一首">⏭</button>
+      </div>
+      <div class="player-progress">
+        <span id="currentTime">0:00</span>
+        <input type="range" id="progressBar" min="0" max="100" value="0" />
+        <span id="totalTime">0:00</span>
+      </div>
+      <div class="player-volume">
+        <input type="range" id="volumeBar" min="0" max="100" value="80" />
+      </div>
+    </div>
+  </div>
+
+  <audio id="audioPlayer"></audio>
+  <script src="webview.js"></script>
+</body>
+</html>
