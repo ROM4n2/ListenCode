@@ -24,8 +24,10 @@ export function initCookieStore(manager: CookieManager): void {
   cookieManager = manager;
 }
 
-export function updateCookie(platform: Platform, cookie: string): void {
-  cookieManager?.importCookie(platform, cookie);
+export async function updateCookie(platform: Platform, cookie: string): Promise<void> {
+  if (cookieManager) {
+    await cookieManager.importCookie(platform, cookie);
+  }
 }
 
 export function getCookie(platform: Platform): string {

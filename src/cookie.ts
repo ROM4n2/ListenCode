@@ -7,10 +7,10 @@ export class CookieManager {
 
   constructor(context: vscode.ExtensionContext) {
     this.context = context;
-    this.load();
   }
 
-  private async load(): Promise<void> {
+  // 异步初始化：必须在 activate 中 await
+  async initialize(): Promise<void> {
     const stored = await this.context.secrets.get('listencode.cookies');
     if (stored) {
       try {

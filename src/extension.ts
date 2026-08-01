@@ -37,9 +37,10 @@ function setCachedUrl(trackId: string, url: string, cookie: string): void {
   urlCache.set(trackId, { url, cookie, time: Date.now() });
 }
 
-export function activate(context: vscode.ExtensionContext) {
+export async function activate(context: vscode.ExtensionContext) {
   extensionContext = context;
   cookieManager = new CookieManager(context);
+  await cookieManager.initialize();  // 等待 SecretStorage 加载完成
   playlistManager = new PlaylistManager(context);
   initCookieStore(cookieManager);
 
