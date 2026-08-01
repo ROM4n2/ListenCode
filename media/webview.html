@@ -10,32 +10,34 @@
   <div id="app">
     <!-- 搜索栏 -->
     <div class="search-bar">
-      <input type="text" id="searchInput" placeholder="搜索歌曲..." />
-      <select id="platformSelect">
+      <label for="searchInput" class="visually-hidden">搜索歌曲</label>
+      <input type="text" id="searchInput" placeholder="搜索歌曲..." aria-label="搜索歌曲" />
+      <label for="platformSelect" class="visually-hidden">选择平台</label>
+      <select id="platformSelect" title="选择搜索平台" aria-label="选择搜索平台">
         <option value="all">全部平台</option>
         <option value="netease">网易云音乐</option>
         <option value="qq">QQ音乐</option>
         <option value="kugou">酷狗音乐</option>
         <option value="bilibili">B站</option>
       </select>
-      <button id="searchBtn">搜索</button>
+      <button type="button" id="searchBtn">搜索</button>
     </div>
 
     <!-- Cookie 状态 -->
-    <div class="cookie-status" id="cookieStatus"></div>
+    <div class="cookie-status" id="cookieStatus" aria-live="polite"></div>
 
     <!-- 搜索结果 -->
-    <div class="search-results" id="searchResults">
+    <div class="search-results" id="searchResults" aria-label="搜索结果">
       <div class="empty-state">输入关键词搜索歌曲</div>
     </div>
 
     <!-- 播放队列 -->
     <div class="queue-panel" id="queuePanel">
       <div class="queue-header">
-        <span>播放队列 (<span id="queueCount">0</span>)</span>
-        <button id="clearQueueBtn" class="btn-small">清空</button>
+        <span>播放队列 (<span id="queueCount" aria-label="队列歌曲数量">0</span>)</span>
+        <button type="button" id="clearQueueBtn" class="btn-small">清空</button>
       </div>
-      <div class="queue-list" id="queueList"></div>
+      <div class="queue-list" id="queueList" aria-label="播放队列"></div>
     </div>
 
     <!-- 歌单面板 -->
@@ -43,12 +45,12 @@
       <div class="playlist-header">
         <span>我的歌单</span>
         <div class="playlist-header-actions">
-          <button id="exportPlaylistsBtn" class="btn-small" title="导出歌单为 JSON">导出</button>
-          <button id="importPlaylistsBtn" class="btn-small" title="从 JSON 导入歌单">导入</button>
-          <button id="newPlaylistBtn" class="btn-small">+ 新建</button>
+          <button type="button" id="exportPlaylistsBtn" class="btn-small" title="导出歌单为 JSON">导出</button>
+          <button type="button" id="importPlaylistsBtn" class="btn-small" title="从 JSON 导入歌单">导入</button>
+          <button type="button" id="newPlaylistBtn" class="btn-small">+ 新建</button>
         </div>
       </div>
-      <div class="playlist-list" id="playlistList"></div>
+      <div class="playlist-list" id="playlistList" aria-label="我的歌单"></div>
     </div>
 
     <!-- 播放控制栏 -->
@@ -58,23 +60,25 @@
         <span id="currentTrackArtist" class="artist"></span>
       </div>
       <div class="player-controls">
-        <button id="modeBtn" class="btn-icon" title="播放模式">🔁</button>
-        <button id="prevBtn" class="btn-icon" title="上一首">⏮</button>
-        <button id="playPauseBtn" class="btn-icon" title="播放/暂停">▶</button>
-        <button id="nextBtn" class="btn-icon" title="下一首">⏭</button>
+        <button type="button" id="modeBtn" class="btn-icon" title="播放模式" aria-label="切换播放模式">🔁</button>
+        <button type="button" id="prevBtn" class="btn-icon" title="上一首" aria-label="上一首">⏮</button>
+        <button type="button" id="playPauseBtn" class="btn-icon" title="播放/暂停" aria-label="播放或暂停">▶</button>
+        <button type="button" id="nextBtn" class="btn-icon" title="下一首" aria-label="下一首">⏭</button>
       </div>
       <div class="player-progress">
-        <span id="currentTime">0:00</span>
-        <input type="range" id="progressBar" min="0" max="100" value="0" />
-        <span id="totalTime">0:00</span>
+        <span id="currentTime" aria-label="当前时间">0:00</span>
+        <label for="progressBar" class="visually-hidden">播放进度</label>
+        <input type="range" id="progressBar" min="0" max="100" value="0" aria-label="播放进度" />
+        <span id="totalTime" aria-label="总时长">0:00</span>
       </div>
       <div class="player-volume">
-        <input type="range" id="volumeBar" min="0" max="100" value="80" />
+        <label for="volumeBar" class="visually-hidden">音量</label>
+        <input type="range" id="volumeBar" min="0" max="100" value="80" aria-label="音量" />
       </div>
     </div>
   </div>
 
-  <video id="audioPlayer"></video>
+  <video id="audioPlayer" aria-label="音频播放器"></video>
   <script src="webview.js"></script>
 </body>
 </html>
