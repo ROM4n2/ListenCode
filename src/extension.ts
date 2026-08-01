@@ -461,7 +461,10 @@ function getLoginHtml(extensionUri: vscode.Uri, platform: string): string {
 
 function getWebviewHtml(webview: vscode.Webview, extensionUri: vscode.Uri): string {
   const htmlPath = vscode.Uri.joinPath(extensionUri, 'media', 'webview.html');
-  const html = require('fs').readFileSync(htmlPath.fsPath, 'utf8');
+  let html = require('fs').readFileSync(htmlPath.fsPath, 'utf8');
+
+  // 注入 CSP，限制 WebView 只能加载同源/VSCode 资源与已知音频源
+  html = html.replace('<head>', `<head><meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; img-src https: vscode-resource:; media-src https: http: vscode-resource:; connect-src https: http:;">`);
 
   return html
     .replace(

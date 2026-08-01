@@ -50,10 +50,22 @@ export function startAudioServer(): Promise<number> {
       }
 
       const trackId = decodeURIComponent(match[1]);
+      // 只允许字母数字和下划线/中划线
+      if (!/^[a-zA-Z0-9_-]+$/.test(trackId)) {
+        res.writeHead(400);
+        res.end('Bad request');
+        return;
+      }
       const cacheDir = getCacheDir();
       // 从 trackId 推断扩展名
       const ext = trackId.startsWith('bibvid_') ? '.mp4' : '.mp3';
       const cacheFile = path.join(cacheDir, `${trackId}${ext}`);
+      // 二次校验解析后的路径仍在 cacheDir 内
+      if (!cacheFile.startsWith(path.resolve(cacheDir))) {
+        res.writeHead(400);
+        res.end('Bad request');
+        return;
+      }
 
       try {
         // 如果缓存不存在，下载
