@@ -250,6 +250,15 @@ async function handleWebviewMessage(webview: vscode.Webview, msg: WebviewRequest
       webview.postMessage({ type: 'search:history', history: getHistory(extensionContext) });
       break;
     }
+    case 'mode:set': {
+      extensionContext.globalState.update('listencode.playMode', msg.mode);
+      break;
+    }
+    case 'mode:get': {
+      const mode = extensionContext.globalState.get<string>('listencode.playMode', 'list');
+      webview.postMessage({ type: 'mode:current', mode });
+      break;
+    }
   }
 }
 

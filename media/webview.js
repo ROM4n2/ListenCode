@@ -11,6 +11,7 @@
   const playPauseBtn = document.getElementById('playPauseBtn');
   const prevBtn = document.getElementById('prevBtn');
   const nextBtn = document.getElementById('nextBtn');
+  const modeBtn = document.getElementById('modeBtn');
   const progressBar = document.getElementById('progressBar');
   const volumeBar = document.getElementById('volumeBar');
   const currentTimeEl = document.getElementById('currentTime');
@@ -24,6 +25,26 @@
   let currentIndex = -1;
   let playlists = [];
   let playableStatus = {}; // trackId -> boolean (是否可播)
+  let playMode = 'list'; // 'list' | 'single' | 'shuffle'
+
+  const MODE_ORDER = ['list', 'single', 'shuffle'];
+  const MODE_ICON = { list: '🔁', single: '🔂', shuffle: '🔀' };
+  const MODE_LABEL = { list: '列表循环', single: '单曲循环', shuffle: '随机播放' };
+
+  function updateModeBtn() {
+    modeBtn.textContent = MODE_ICON[playMode];
+    modeBtn.title = `播放模式：${MODE_LABEL[playMode]}`;
+    modeBtn.classList.toggle('active', playMode !== 'list');
+  }
+
+  function cycleMode() {
+    const idx = MODE_ORDER.indexOf(playMode);
+    playMode = MODE_ORDER[(idx + 1) % MODE_ORDER.length];
+    updateModeBtn();
+    vscode.postMessage({ type: 'mode:set', mode: playMode });
+  }
+
+  modeBtn.addEventListener('click', cycleMode);
 
   // 搜索
   searchBtn.addEventListener('click', doSearch);
@@ -128,13 +149,25 @@
 
   function playNext() {
     if (currentPlaylist.length === 0) {return;}
-    currentIndex = (currentIndex + 1) % currentPlaylist.length;
+    if (playMode === 'single') {
+      // 重播当前，index 不变
+    } else if (playMode === 'shuffle') {
+      currentIndex = Math.floor(Math.random() * currentPlaylist.length);
+    } else {
+      currentIndex = (currentIndex + 1) % currentPlaylist.length;
+    }
     playTrack(currentPlaylist[currentIndex]);
   }
 
   function playPrev() {
     if (currentPlaylist.length === 0) {return;}
-    currentIndex = (currentIndex - 1 + currentPlaylist.length) % currentPlaylist.length;
+    if (playMode === 'single') {
+      // 重播当前，index 不变
+    } else if (playMode === 'shuffle') {
+      currentIndex = Math.floor(Math.random() * currentPlaylist.length);
+    } else {
+      currentIndex = (currentIndex - 1 + currentPlaylist.length) % currentPlaylist.length;
+    }
     playTrack(currentPlaylist[currentIndex]);
   }
 
@@ -208,6 +241,12 @@
         break;
       case 'search:history':
         showHistoryDropdown(msg.history);
+        break;
+      case 'mode:current':
+        if (MODE_ORDER.includes(msg.mode)) {
+          playMode = msg.mode;
+          updateModeBtn();
+        }
         break;
       case 'error':
         showError(msg.message);
@@ -314,6 +353,7 @@
     return div.innerHTML;
   }
 
-  // 初始化：加载歌单
+  // 初始化：加载歌单 + 播放模式
   vscode.postMessage({ type: 'playlist:load' });
+  vscode.postMessage({ type: 'mode:get' });
 })();

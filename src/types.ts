@@ -36,7 +36,9 @@ export type WebviewRequest =
   | { type: 'playlist:load' }
   | { type: 'cookie:import'; platform: string; raw: string }
   | { type: 'player:state'; playing: boolean; track: Track | null }
-  | { type: 'search:loadHistory' };
+  | { type: 'search:loadHistory' }
+  | { type: 'mode:set'; mode: string }
+  | { type: 'mode:get' };
 
 // Extension Host → WebView
 export type WebviewResponse =
@@ -47,4 +49,5 @@ export type WebviewResponse =
   | { type: 'cookie:status'; platform: string; valid: boolean }
   | { type: 'playable:status'; status: Record<string, boolean> }
   | { type: 'search:history'; history: string[] }
+  | { type: 'mode:current'; mode: string }
   | { type: 'error'; message: string };
