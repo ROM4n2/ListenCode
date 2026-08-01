@@ -383,7 +383,11 @@
 
   function renderTracks(tracks) {
     if (tracks.length === 0) {
-      searchResults.innerHTML = '<div class="empty-state">无结果</div>';
+      const noCookie = Object.values(cookieStatusObj).every(v => !v);
+      const hint = noCookie
+        ? '<div class="empty-state">无结果<br><small>提示：各平台需要导入 Cookie 才能搜索<br>Ctrl+Shift+P → ListenCode: Import Cookie</small></div>'
+        : '<div class="empty-state">无结果<br><small>可能是版权限制，换首歌试试</small></div>';
+      searchResults.innerHTML = hint;
       return;
     }
     searchResults.innerHTML = tracks.map((t) => {
@@ -449,7 +453,9 @@
     `).join('');
   }
 
+  let cookieStatusObj = {};
   function renderCookieStatus(status) {
+    cookieStatusObj = status;
     const labels = { netease: '网易', qq: 'QQ', kugou: '酷狗', bilibili: 'B站' };
     cookieStatus.innerHTML = Object.entries(status).map(([k, v]) =>
       `<span class="cookie-dot ${v ? 'active' : ''}">${labels[k] || k}</span>`

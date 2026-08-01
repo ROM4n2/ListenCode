@@ -20,9 +20,7 @@ interface BiliSearchResponse {
 interface BiliPlayResponse {
   code: number;
   data: {
-    dash?: {
-      audio: Array<{ baseUrl: string; url: Array<string> }>;
-    };
+    durl?: Array<{ url: string; order: number; length: number; size: number }>;
   };
 }
 
@@ -74,15 +72,16 @@ export async function getPlayUrl(trackId: string): Promise<string | null> {
   const cid = infoResp.data.data?.cid;
   if (!cid) {return null;}
 
+  // fnval=1 返回 MP4 直接链接（音视频合并），<audio> 可直接播放
   const playResp = await client.get<BiliPlayResponse>(
     'https://api.bilibili.com/x/player/playurl',
-    { params: { bvid, cid, fnval: 16, qn: 0 } }
+    { params: { bvid, cid, fnval: 1, qn: 0 } }
   );
 
-  const audioList = playResp.data.data?.dash?.audio;
-  if (!audioList || audioList.length === 0) {return null;}
+  const durl = playResp.data.data?.durl;
+  if (!durl || durl.length === 0) {return null;}
 
-  return audioList[0].baseUrl ?? audioList[0].url?.[0] ?? null;
+  return durl[0].url;
 }
 
 interface BiliFavFolderResponse {
