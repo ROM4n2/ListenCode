@@ -53,8 +53,8 @@ export function startAudioServer(): Promise<number> {
         return;
       }
       const cacheDir = getCacheDir();
-      // 从 trackId 推断扩展名
-      const ext = trackId.startsWith('bibvid_') ? '.mp4' : '.mp3';
+      // 从 trackId 推断扩展名：B站 DASH 音频为 m4a，其他为 mp3
+      const ext = trackId.startsWith('bibvid_') ? '.m4a' : '.mp3';
       const cacheFile = path.join(cacheDir, `${trackId}${ext}`);
       // 二次校验解析后的路径仍在 cacheDir 内
       if (!cacheFile.startsWith(path.resolve(cacheDir))) {
@@ -114,7 +114,7 @@ export function startAudioServer(): Promise<number> {
             // 非法 Range，返回完整文件
             res.writeHead(200, {
               'Content-Length': fileSize,
-              'Content-Type': ext === '.mp4' ? 'video/mp4' : 'audio/mpeg',
+              'Content-Type': ext === '.m4a' ? 'audio/mp4' : 'audio/mpeg',
               'Accept-Ranges': 'bytes',
             });
             fs.createReadStream(cacheFile).pipe(res);
@@ -127,13 +127,13 @@ export function startAudioServer(): Promise<number> {
             'Content-Range': `bytes ${start}-${end}/${fileSize}`,
             'Accept-Ranges': 'bytes',
             'Content-Length': chunkSize,
-            'Content-Type': ext === '.mp4' ? 'video/mp4' : 'audio/mpeg',
+            'Content-Type': ext === '.m4a' ? 'audio/mp4' : 'audio/mpeg',
           });
           fs.createReadStream(cacheFile, { start, end }).pipe(res);
         } else {
           res.writeHead(200, {
             'Content-Length': fileSize,
-            'Content-Type': ext === '.mp4' ? 'video/mp4' : 'audio/mpeg',
+            'Content-Type': ext === '.m4a' ? 'audio/mp4' : 'audio/mpeg',
             'Accept-Ranges': 'bytes',
           });
           fs.createReadStream(cacheFile).pipe(res);

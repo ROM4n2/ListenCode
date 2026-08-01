@@ -21,6 +21,16 @@ interface BiliPlayResponse {
   code: number;
   data: {
     durl?: Array<{ url: string; order: number; length: number; size: number }>;
+    dash?: {
+      audio: Array<{
+        id: number;
+        baseUrl: string;
+        backupUrl: string[];
+        bandwidth: number;
+        mimeType: string;
+        codecs: string;
+      }>;
+    };
   };
 }
 
@@ -97,16 +107,26 @@ export async function getPlayUrl(trackId: string): Promise<string | null> {
   const cid = infoResp.data.data?.cid;
   if (!cid) {return null;}
 
-  // fnval=1 返回 MP4 直接链接（音视频合并），<audio> 可直接播放
+  // fnval=16 返回 DASH 格式，dash.audio 包含独立音频流（m4a/AAC），与 Listen1 一致
   const playResp = await client.get<BiliPlayResponse>(
     'https://api.bilibili.com/x/player/playurl',
-    { params: { bvid, cid, fnval: 1, qn: 0 } }
+    { params: { bvid, cid, fnval: 16, qn: 0 } }
   );
 
-  const durl = playResp.data.data?.durl;
-  if (!durl || durl.length === 0) {return null;}
+  const dash = playResp.data.data?.dash;
+  if (dash?.audio?.length) {
+    // 按带宽降序，取最高质量音频流
+    const audio = [...dash.audio].sort((a, b) => b.bandwidth - a.bandwidth)[0];
+    return audio.baseUrl;
+  }
 
-  return durl[0].url;
+  // 回退：旧版 durl MP4（音视频合并）
+  const durl = playResp.data.data?.durl;
+  if (durl?.length) {
+    return durl[0].url;
+  }
+
+  return null;
 }
 
 interface BiliFavFolderResponse {
