@@ -1,4 +1,5 @@
 import * as vscode from 'vscode';
+import * as fs from 'fs';
 import { CookieManager, parseCookieInput } from './cookie';
 import { PlaylistManager } from './playlist';
 import { searchAll } from './search';
@@ -118,6 +119,52 @@ export function activate(context: vscode.ExtensionContext) {
     }
   });
 
+  // 注册内嵌登录命令
+  const loginCmd = vscode.commands.registerCommand('listencode.login', async () => {
+    const platform = await vscode.window.showQuickPick(
+      [
+        { label: '网易云音乐', value: 'netease' },
+        { label: 'QQ音乐', value: 'qq' },
+        { label: '酷狗音乐', value: 'kugou' },
+        { label: 'B站', value: 'bilibili' },
+      ],
+      { placeHolder: '选择要登录的平台' }
+    );
+    if (!platform) {return;}
+
+    const panel = vscode.window.createWebviewPanel(
+      'listencode.login',
+      `登录${platform.label}`,
+      vscode.ViewColumn.One,
+      { enableScripts: true, retainContextWhenHidden: true }
+    );
+
+    panel.webview.html = getLoginHtml(context.extensionUri, platform.value);
+
+    panel.webview.onDidReceiveMessage(async (msg) => {
+      if (msg.type === 'login:success') {
+        try {
+          const parsed = parseCookieInput(msg.cookie);
+          cookieManager.importCookie(msg.platform as Platform, parsed);
+          updateCookie(msg.platform as Platform, parsed);
+          panel.dispose();
+          vscode.window.showInformationMessage(`${platform.label} 登录成功`);
+          if (activePanel) {
+            activePanel.webview.postMessage({
+              type: 'cookie:status',
+              status: cookieManager.getAllStatus(),
+            });
+          }
+        } catch (e) {
+          vscode.window.showErrorMessage(`登录失败: ${e}`);
+        }
+      } else if (msg.type === 'login:timeout') {
+        panel.dispose();
+        vscode.window.showWarningMessage('登录超时，请重试');
+      }
+    });
+  });
+
   // 注册导入 cookie 命令
   const importCookieCmd = vscode.commands.registerCommand('listencode.importCookie', async () => {
     const platform = await vscode.window.showQuickPick(
@@ -147,7 +194,7 @@ export function activate(context: vscode.ExtensionContext) {
     }
   });
 
-  context.subscriptions.push(openPlayerCmd, quickPlayCmd, togglePlayCmd, importCookieCmd, exportPlaylistsCmd, importPlaylistsCmd);
+  context.subscriptions.push(openPlayerCmd, quickPlayCmd, togglePlayCmd, loginCmd, importCookieCmd, exportPlaylistsCmd, importPlaylistsCmd);
 }
 
 function createPlayerPanel(context: vscode.ExtensionContext): vscode.WebviewPanel {
@@ -328,7 +375,16 @@ async function handleWebviewMessage(webview: vscode.Webview, msg: WebviewRequest
       }
       break;
     }
+    case 'open:login':
+      vscode.commands.executeCommand('listencode.login');
+      break;
   }
+}
+
+function getLoginHtml(extensionUri: vscode.Uri, platform: string): string {
+  const htmlPath = vscode.Uri.joinPath(extensionUri, 'media', 'login.html');
+  let html = fs.readFileSync(htmlPath.fsPath, 'utf8');
+  return html.replace(/\{\{PLATFORM\}\}/g, platform);
 }
 
 function getWebviewHtml(webview: vscode.Webview, extensionUri: vscode.Uri): string {

@@ -455,9 +455,15 @@
   function renderCookieStatus(status) {
     cookieStatusObj = status;
     const labels = { netease: '网易', qq: 'QQ', kugou: '酷狗', bilibili: 'B站' };
-    cookieStatus.innerHTML = Object.entries(status).map(([k, v]) =>
+    const dots = Object.entries(status).map(([k, v]) =>
       `<span class="cookie-dot ${v ? 'active' : ''}">${labels[k] || k}</span>`
     ).join('');
+    const loginBtn = '<button id="openLoginBtn" class="btn-small" style="margin-left:6px">登录</button>';
+    cookieStatus.innerHTML = dots + loginBtn;
+    const btn = document.getElementById('openLoginBtn');
+    if (btn) {
+      btn.addEventListener('click', () => vscode.postMessage({ type: 'open:login' }));
+    }
   }
 
   function updatePlayerStatus(status) {

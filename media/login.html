@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <style>
+    body { margin: 0; padding: 20px; font-family: var(--vscode-font-family); color: var(--vscode-foreground); background: var(--vscode-editor-background); text-align: center; }
+    .loading { margin-top: 40px; }
+    .error { color: #f44336; margin-top: 20px; }
+  </style>
+</head>
+<body>
+  <div class="loading">正在加载登录页...</div>
+  <script>
+    var vscode = acquireVsCodeApi();
+    var platform = '{{PLATFORM}}';
+
+    var LOGIN_URLS = {
+      netease: 'https://music.163.com/login',
+      qq: 'https://y.qq.com',
+      kugou: 'https://www.kugou.com',
+      bilibili: 'https://passport.bilibili.com/login'
+    };
+
+    var SUCCESS_URLS = {
+      netease: 'music.163.com',
+      qq: 'y.qq.com',
+      kugou: 'kugou.com',
+      bilibili: 'bilibili.com'
+    };
+
+    var loginUrl = LOGIN_URLS[platform];
+    var successIndicator = SUCCESS_URLS[platform];
+
+    if (loginUrl) {
+      window.location.href = loginUrl;
+    }
+
+    var checkInterval = setInterval(function() {
+      if (window.location.hostname.indexOf(successIndicator) !== -1) {
+        clearInterval(checkInterval);
+        var cookies = document.cookie;
+        vscode.postMessage({ type: 'login:success', cookie: cookies, platform: platform });
+      }
+    }, 1000);
+
+    setTimeout(function() {
+      clearInterval(checkInterval);
+      vscode.postMessage({ type: 'login:timeout', platform: platform });
+    }, 180000);
+  </script>
+</body>
+</html>

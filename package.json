@@ -31,6 +31,11 @@
         "category": "ListenCode"
       },
       {
+        "command": "listencode.login",
+        "title": "Login",
+        "category": "ListenCode"
+      },
+      {
         "command": "listencode.importCookie",
         "title": "Import Cookie",
         "category": "ListenCode"

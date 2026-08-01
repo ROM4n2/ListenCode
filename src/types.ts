@@ -43,6 +43,7 @@ export type WebviewRequest =
   | { type: 'mode:set'; mode: string }
   | { type: 'mode:get' }
   | { type: 'userplaylists:get'; platform: string }
+  | { type: 'open:login' }
   | { type: 'playlist:syncLoad'; platform: string; playlistId: string };
 
 // Extension Host → WebView
