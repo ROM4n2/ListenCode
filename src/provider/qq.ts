@@ -5,16 +5,29 @@ const client = createHttpClient('qq');
 
 const GUID = Math.floor(Math.random() * 1000000000);
 
+interface QQSinger {
+  id: number;
+  mid: string;
+  name: string;
+}
+
+interface QQSong {
+  songid: number;
+  songmid: string;
+  songname: string;
+  singer: QQSinger[];
+  albummid: string;
+  albumname: string;
+  alertid: number;
+  pay: { payplay: number };
+}
+
 interface QQSearchResponse {
   code: number;
   data: {
     song: {
-      list: Array<{
-        mid: string;
-        name: string;
-        singer: Array<{ mid: string; name: string }>;
-        album: { mid: string; name: string };
-      }>;
+      list: QQSong[];
+      totalnum: number;
     };
   };
 }
@@ -28,12 +41,12 @@ interface QQVkeyResponse {
   };
 }
 
-function mapSong(item: QQSearchResponse['data']['song']['list'][0]): Track {
+function mapSong(item: QQSong): Track {
   return {
-    id: `qqtrack_${item.mid}`,
-    title: item.name,
+    id: `qqtrack_${item.songmid}`,
+    title: item.songname,
     artist: item.singer[0]?.name ?? '未知歌手',
-    album: item.album.name,
+    album: item.albumname,
     source: 'qq',
   };
 }
@@ -41,21 +54,19 @@ function mapSong(item: QQSearchResponse['data']['song']['list'][0]): Track {
 export async function search(keyword: string, limit = 20): Promise<Track[]> {
   const url = 'https://c.y.qq.com/soso/fcgi-bin/client_search_cp';
   const params = {
-    ct: 24,
-    qqmusic_ver: 1298,
-    new_json: 1,
-    remoteplace: 'txt.yqq.song',
-    searchid: GUID,
-    t: 0,
-    aggr: 1,
-    cr: 1,
-    catZhida: 1,
-    lossless: 0,
-    flag_qc: 0,
+    format: 'json',
     p: 1,
     n: limit,
     w: keyword,
-    format: 'json',
+    cr: 1,
+    g_tk: 5381,
+    loginUin: 0,
+    hostUin: 0,
+    inCharset: 'utf8',
+    outCharset: 'utf-8',
+    notice: 0,
+    platform: 'yqq',
+    needNewCode: 0,
   };
 
   const response = await client.get<QQSearchResponse>(url, { params });

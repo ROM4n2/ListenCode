@@ -49,7 +49,12 @@ export async function search(keyword: string, limit = 20): Promise<Track[]> {
     pagesize: limit,
   };
 
-  const response = await client.get<BiliSearchResponse>(url, { params });
+  const response = await client.get<BiliSearchResponse>(url, {
+    params,
+    headers: {
+      'Accept': 'application/json, text/plain, */*',
+    },
+  });
   const results = response.data.data?.result ?? [];
   return results.filter(r => r.type === 'video').map(mapSong);
 }
