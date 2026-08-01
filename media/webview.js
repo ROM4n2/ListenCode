@@ -285,12 +285,12 @@
   });
 
   function addToPlaylist(track) {
+    // 没有歌单则先创建，再添加
     if (playlists.length === 0) {
-      const pl = { id: 'default', name: '默认歌单', tracks: [] };
-      playlists.push(pl);
-      renderPlaylists();
+      vscode.postMessage({ type: 'playlist:createAndAdd', name: '默认歌单', track });
+    } else {
+      vscode.postMessage({ type: 'playlist:add', playlistId: playlists[0].id, track });
     }
-    vscode.postMessage({ type: 'playlist:add', playlistId: playlists[0].id, track });
   }
 
   // 歌单

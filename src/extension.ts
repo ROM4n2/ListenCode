@@ -324,6 +324,12 @@ async function handleWebviewMessage(webview: vscode.Webview, msg: WebviewRequest
       webview.postMessage({ type: 'playlist:list', playlists: playlistManager.getAll() });
       break;
     }
+    case 'playlist:createAndAdd': {
+      const playlist = playlistManager.create(msg.name);
+      playlistManager.addTrack(playlist.id, msg.track);
+      webview.postMessage({ type: 'playlist:list', playlists: playlistManager.getAll() });
+      break;
+    }
     case 'playlist:remove': {
       if (msg.trackId) {
         playlistManager.removeTrack(msg.playlistId, msg.trackId);

@@ -32,6 +32,7 @@ export type WebviewRequest =
   | { type: 'control'; action: 'pause' | 'next' | 'prev' | 'seek' | 'volume'; value?: number }
   | { type: 'playlist:create'; name: string }
   | { type: 'playlist:add'; playlistId: string; track: Track }
+  | { type: 'playlist:createAndAdd'; name: string; track: Track }
   | { type: 'playlist:remove'; playlistId: string; trackId?: string }
   | { type: 'playlist:reorder'; playlistId: string; fromIndex: number; toIndex: number }
   | { type: 'playlist:load' }
