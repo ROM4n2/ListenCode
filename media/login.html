@@ -44,6 +44,7 @@
   </div>
   <script>
     var vscode = acquireVsCodeApi();
+    var platform = '{{PLATFORM}}';
     var currentUnikey = '';
     var pollTimer = null;
 
@@ -51,6 +52,12 @@
     var statusEl = document.getElementById('status');
     var refreshBtn = document.getElementById('refreshBtn');
     var pasteBtn = document.getElementById('pasteBtn');
+
+    // 网易云: 801=等待, 802=已扫码, 803=成功, 800=过期
+    // B站: 86101=未扫码, 86090=已确认, 0=成功, 86038=过期
+    var STATUS = platform === 'bilibili'
+      ? { wait: 86101, scanned: 86090, success: 0, expired: 86038 }
+      : { wait: 801, scanned: 802, success: 803, expired: 800 };
 
     function startLogin() {
       if (pollTimer) { clearInterval(pollTimer); pollTimer = null; }
@@ -64,36 +71,35 @@
       vscode.postMessage({ type: 'login:poll', unikey: currentUnikey });
     }
 
-    refreshBtn.onclick = function () {
-      startLogin();
-    };
+    refreshBtn.onclick = function () { startLogin(); };
 
     pasteBtn.onclick = function () {
-      vscode.postMessage({ type: 'login:paste', platform: 'netease' });
+      vscode.postMessage({ type: 'login:paste', platform: platform });
     };
 
     window.addEventListener('message', function (event) {
       var msg = event.data;
       if (msg.type === 'login:qrcode') {
-        currentUnikey = msg.url.split('codekey=')[1] || '';
+        // 从 URL 提取 qrcode_key/codekey
+        var match = msg.url.match(/(?:codekey|qrcode_key)=([^&]+)/);
+        currentUnikey = match ? match[1] : '';
         qrImg.src = msg.url;
         statusEl.textContent = '等待扫码...';
         statusEl.className = 'status';
-        // 每 2 秒轮询一次
         if (pollTimer) { clearInterval(pollTimer); }
         pollTimer = setInterval(pollStatus, 2000);
       } else if (msg.type === 'login:status') {
         var code = msg.status.code;
-        if (code === 801) {
+        if (code === STATUS.wait) {
           statusEl.textContent = '等待扫码...';
-        } else if (code === 802) {
+        } else if (code === STATUS.scanned) {
           statusEl.textContent = '已扫码，请在手机上确认';
           statusEl.className = 'status success';
-        } else if (code === 803) {
+        } else if (code === STATUS.success) {
           statusEl.textContent = '登录成功！';
           statusEl.className = 'status success';
           if (pollTimer) { clearInterval(pollTimer); pollTimer = null; }
-        } else if (code === 800) {
+        } else if (code === STATUS.expired) {
           statusEl.textContent = '二维码已过期，请刷新';
           statusEl.className = 'status error';
           if (pollTimer) { clearInterval(pollTimer); pollTimer = null; }
@@ -104,7 +110,6 @@
       }
     });
 
-    // 启动登录流程
     startLogin();
   </script>
 </body>

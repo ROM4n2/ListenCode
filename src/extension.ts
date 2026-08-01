@@ -3,7 +3,7 @@ import * as fs from 'fs';
 import { CookieManager, parseCookieInput } from './cookie';
 import { PlaylistManager } from './playlist';
 import { searchAll } from './search';
-import { resolvePlayUrl, preCheckPlayable, getUserPlaylists, getPlaylistTracks, getQRCodeKey, getQRCodeUrl, pollQRCodeStatus } from './provider';
+import { resolvePlayUrl, preCheckPlayable, getUserPlaylists, getPlaylistTracks, neteaseQR, bilibiliQR } from './provider';
 import { updateCookie } from './provider/http';
 import { WebviewRequest, Track, Playlist, Platform } from './types';
 import { getHistory, addHistory } from './search-history';
@@ -142,15 +142,15 @@ export function activate(context: vscode.ExtensionContext) {
 
     panel.webview.html = getLoginHtml(context.extensionUri, platform.value);
 
-    // 二维码登录 unikey 存储
-    let qrUnikey = '';
+    // 根据平台选择二维码登录实现
+    const qr = platform.value === 'bilibili' ? bilibiliQR : neteaseQR;
+    const platformName = platform.value;
+    let qrKey = '';
 
     panel.webview.onDidReceiveMessage(async (msg) => {
       if (msg.type === 'login:openUrl') {
-        // 在系统浏览器中打开登录页
         vscode.env.openExternal(vscode.Uri.parse(msg.url));
       } else if (msg.type === 'login:paste') {
-        // 用户粘贴 cookie
         panel.dispose();
         const raw = await vscode.window.showInputBox({
           placeHolder: '在浏览器 F12 → Console 运行 copy(document.cookie)，粘贴到这里',
@@ -164,45 +164,43 @@ export function activate(context: vscode.ExtensionContext) {
             updateCookie(msg.platform as Platform, parsed);
             vscode.window.showInformationMessage(`${platform.label} 登录成功`);
             if (activePanel) {
-              activePanel.webview.postMessage({
-                type: 'cookie:status',
-                status: cookieManager.getAllStatus(),
-              });
+              activePanel.webview.postMessage({ type: 'cookie:status', status: cookieManager.getAllStatus() });
             }
           } catch (e) {
             vscode.window.showErrorMessage(`导入失败: ${e}`);
           }
         }
       } else if (msg.type === 'login:start') {
-        // 获取二维码 key
         try {
-          qrUnikey = await getQRCodeKey();
-          const qrUrl = getQRCodeUrl(qrUnikey);
+          qrKey = await qr.getKey();
+          const qrUrl = qr.getUrl(qrKey);
           panel.webview.postMessage({ type: 'login:qrcode', url: qrUrl });
         } catch (e: any) {
-          panel.webview.postMessage({ type: 'login:status', status: { code: 0, message: '获取二维码失败: ' + (e.message || e) } });
+          panel.webview.postMessage({ type: 'login:status', status: { code: -1, message: '获取二维码失败: ' + (e.message || e) } });
         }
       } else if (msg.type === 'login:poll') {
-        // 轮询扫码状态
         try {
-          const status = await pollQRCodeStatus(msg.unikey);
-          if (status.code === 803 && status.cookie) {
-            // 登录成功
-            cookieManager.importCookie('netease', status.cookie);
-            updateCookie('netease', status.cookie);
+          const status = await qr.poll(msg.unikey);
+          // 网易云: 803=成功(返回cookie字符串); B站: 0=成功(返回cookies数组)
+          const success = platformName === 'bilibili' ? status.code === 0 : status.code === 803;
+          const cookieStr = platformName === 'bilibili'
+            ? (status as any).cookies?.join('; ')
+            : (status as any).cookie;
+
+          if (success && cookieStr) {
+            const parsed = parseCookieInput(cookieStr);
+            cookieManager.importCookie(platformName as Platform, parsed);
+            updateCookie(platformName as Platform, parsed);
             panel.dispose();
-            vscode.window.showInformationMessage('网易云登录成功');
+            vscode.window.showInformationMessage(`${platform.label} 登录成功`);
             if (activePanel) {
-              activePanel.webview.postMessage({
-                type: 'cookie:status',
-                status: cookieManager.getAllStatus(),
-              });
+              activePanel.webview.postMessage({ type: 'cookie:status', status: cookieManager.getAllStatus() });
             }
           } else {
-            panel.webview.postMessage({ type: 'login:status', status });
+            panel.webview.postMessage({ type: 'login:status', status: { code: status.code, message: status.message } });
           }
         } catch (e: any) {
-          panel.webview.postMessage({ type: 'login:status', status: { code: 0, message: '轮询失败: ' + (e.message || e) } });
+          panel.webview.postMessage({ type: 'login:status', status: { code: -1, message: '轮询失败: ' + (e.message || e) } });
         }
       }
     });

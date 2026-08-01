@@ -62,6 +62,36 @@ export async function search(keyword: string, limit = 20): Promise<Track[]> {
   return results.filter(r => r.type === 'video').map(mapSong);
 }
 
+// B站二维码登录：获取二维码 key
+export async function getQRCodeKey(): Promise<string> {
+  const res = await client.get<{ data: { url: string; qrcode_key: string } }>(
+    'https://passport.bilibili.com/x/passport-login/web/qrcode/generate'
+  );
+  return res.data.data.qrcode_key;
+}
+
+// B站二维码登录：生成二维码图片 URL
+export function getQRCodeUrl(qrcodeKey: string): string {
+  return `https://passport.bilibili.com/h5-app/passport/login/scan?qrcode_key=${qrcodeKey}&navhide=1`;
+}
+
+// B站二维码登录：轮询扫码状态
+export async function pollQRCodeStatus(qrcodeKey: string): Promise<{code: number, cookies?: string[], message?: string}> {
+  const res = await client.get<{
+    code: number;
+    data: { url: string; code: number; message?: string };
+  }>(
+    'https://passport.bilibili.com/x/passport-login/web/qrcode/poll',
+    { params: { qrcode_key: qrcodeKey } }
+  );
+  // code 0=成功, 86101=未扫码, 86090=已扫码待确认, 86038=过期
+  return {
+    code: res.data.data.code,
+    cookies: res.headers['set-cookie'],
+    message: res.data.data.message,
+  };
+}
+
 export async function getPlayUrl(trackId: string): Promise<string | null> {
   const bvid = trackId.replace('bibvid_', '');
 

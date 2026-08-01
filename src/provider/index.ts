@@ -5,9 +5,17 @@ import * as kugou from './kugou';
 import * as bilibili from './bilibili';
 import { PlaylistSummary } from './netease';
 
-export const getQRCodeKey = netease.getQRCodeKey;
-export const getQRCodeUrl = netease.getQRCodeUrl;
-export const pollQRCodeStatus = netease.pollQRCodeStatus;
+// 二维码登录函数按平台导出
+export const neteaseQR = {
+  getKey: netease.getQRCodeKey,
+  getUrl: netease.getQRCodeUrl,
+  poll: netease.pollQRCodeStatus,
+};
+export const bilibiliQR = {
+  getKey: bilibili.getQRCodeKey,
+  getUrl: bilibili.getQRCodeUrl,
+  poll: bilibili.pollQRCodeStatus,
+};
 
 interface Provider {
   search(keyword: string, limit?: number): Promise<Track[]>;
