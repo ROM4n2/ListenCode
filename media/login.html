@@ -3,13 +3,38 @@
 <head>
   <meta charset="UTF-8">
   <style>
-    body { margin: 0; padding: 20px; font-family: var(--vscode-font-family); color: var(--vscode-foreground); background: var(--vscode-editor-background); text-align: center; }
-    .loading { margin-top: 40px; }
-    .error { color: #f44336; margin-top: 20px; }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: var(--vscode-font-family); background: var(--vscode-editor-background); height: 100vh; display: flex; flex-direction: column; }
+    #toolbar {
+      padding: 8px 12px; display: flex; align-items: center; gap: 10px;
+      background: var(--vscode-panel-background); border-bottom: 1px solid var(--vscode-panel-border);
+    }
+    #status { font-size: 12px; color: var(--vscode-descriptionForeground); flex: 1; }
+    #status.error { color: #f44336; }
+    #status.success { color: #4caf50; }
+    .btn { background: var(--vscode-button-background); color: var(--vscode-button-foreground); border: none; padding: 4px 12px; border-radius: 3px; cursor: pointer; font-size: 12px; }
+    .btn:hover { opacity: 0.9; }
+    #iframe-container { flex: 1; position: relative; }
+    #login-frame {
+      width: 100%; height: 100%; border: none;
+      background: white;
+    }
+    #loading {
+      position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
+      color: var(--vscode-descriptionForeground); font-size: 13px;
+    }
   </style>
 </head>
 <body>
-  <div class="loading">正在加载登录页...</div>
+  <div id="toolbar">
+    <button id="refreshBtn" class="btn">刷新</button>
+    <button id="finishBtn" class="btn" style="display:none">完成登录</button>
+    <span id="status">正在加载登录页...</span>
+  </div>
+  <div id="iframe-container">
+    <div id="loading">加载中...</div>
+    <iframe id="login-frame" sandbox="allow-same-origin allow-scripts allow-forms allow-popups"></iframe>
+  </div>
   <script>
     var vscode = acquireVsCodeApi();
     var platform = '{{PLATFORM}}';
@@ -21,32 +46,58 @@
       bilibili: 'https://passport.bilibili.com/login'
     };
 
-    var SUCCESS_URLS = {
-      netease: 'music.163.com',
-      qq: 'y.qq.com',
-      kugou: 'kugou.com',
-      bilibili: 'bilibili.com'
-    };
+    var frame = document.getElementById('login-frame');
+    var status = document.getElementById('status');
+    var loading = document.getElementById('loading');
+    var finishBtn = document.getElementById('finishBtn');
+    var refreshBtn = document.getElementById('refreshBtn');
 
-    var loginUrl = LOGIN_URLS[platform];
-    var successIndicator = SUCCESS_URLS[platform];
+    var loginUrl = LOGIN_URLS[platform] || 'https://music.163.com/login';
 
-    if (loginUrl) {
-      window.location.href = loginUrl;
-    }
+    // 加载登录页
+    frame.src = loginUrl;
 
-    var checkInterval = setInterval(function() {
-      if (window.location.hostname.indexOf(successIndicator) !== -1) {
-        clearInterval(checkInterval);
-        var cookies = document.cookie;
-        vscode.postMessage({ type: 'login:success', cookie: cookies, platform: platform });
+    frame.addEventListener('load', function () {
+      loading.style.display = 'none';
+      status.textContent = '请在下方登录，完成后点击"完成登录"按钮';
+      finishBtn.style.display = 'inline-block';
+    });
+
+    frame.addEventListener('error', function () {
+      status.textContent = '加载失败，请检查网络';
+      status.className = 'error';
+    });
+
+    // 刷新按钮
+    refreshBtn.addEventListener('click', function () {
+      loading.style.display = 'block';
+      frame.src = loginUrl;
+    });
+
+    // 完成登录按钮 - 尝试从 iframe 读 cookie，读不到则让用户手动粘贴
+    finishBtn.addEventListener('click', function () {
+      status.textContent = '正在获取登录状态...';
+      // 由于跨域限制，iframe 内的 cookie 读不到
+      // 方案：尝试通过 contentWindow 访问，失败则提示手动导入
+      try {
+        var frameDoc = frame.contentDocument || frame.contentWindow.document;
+        var cookies = frameDoc.cookie;
+        if (cookies) {
+          vscode.postMessage({ type: 'login:success', cookie: cookies, platform: platform });
+        } else {
+          throw new Error('no cookie');
+        }
+      } catch (e) {
+        // 跨域无法读取，提示手动导入
+        vscode.postMessage({ type: 'login:needManual', platform: platform });
       }
-    }, 1000);
+    });
 
-    setTimeout(function() {
-      clearInterval(checkInterval);
-      vscode.postMessage({ type: 'login:timeout', platform: platform });
-    }, 180000);
+    // 超时 5 分钟
+    setTimeout(function () {
+      status.textContent = '登录超时，请重试';
+      status.className = 'error';
+    }, 300000);
   </script>
 </body>
 </html>

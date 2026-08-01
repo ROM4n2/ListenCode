@@ -38,6 +38,9 @@ export type WebviewRequest =
   | { type: 'playlists:export' }
   | { type: 'playlists:import' }
   | { type: 'cookie:import'; platform: string; raw: string }
+  | { type: 'login:needManual'; platform: string }
+  | { type: 'login:success'; cookie: string; platform: string }
+  | { type: 'login:timeout'; platform: string }
   | { type: 'player:state'; playing: boolean; track: Track | null }
   | { type: 'search:loadHistory' }
   | { type: 'mode:set'; mode: string }
@@ -50,7 +53,7 @@ export type WebviewRequest =
 export type WebviewResponse =
   | { type: 'search:result'; tracks: Track[] }
   | { type: 'player:status'; playing: boolean; currentTrack: Track | null; currentTime: number; duration: number; volume: number }
-  | { type: 'player:resolve'; url: string | null; track: Track }
+  | { type: 'player:resolve'; url: string | null; cookie: string; track: Track }
   | { type: 'playlist:list'; playlists: Playlist[] }
   | { type: 'cookie:status'; platform: string; valid: boolean }
   | { type: 'playable:status'; status: Record<string, boolean> }

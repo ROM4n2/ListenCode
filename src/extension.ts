@@ -158,6 +158,30 @@ export function activate(context: vscode.ExtensionContext) {
         } catch (e) {
           vscode.window.showErrorMessage(`登录失败: ${e}`);
         }
+      } else if (msg.type === 'login:needManual') {
+        panel.dispose();
+        // 跨域无法自动读取 cookie，回退到手动导入
+        const raw = await vscode.window.showInputBox({
+          placeHolder: '请在浏览器 F12 → Console 运行 copy(document.cookie)，然后粘贴到这里',
+          prompt: `${platform.label} - 手动导入 Cookie`,
+          ignoreFocusOut: true,
+        });
+        if (raw) {
+          try {
+            const parsed = parseCookieInput(raw);
+            cookieManager.importCookie(msg.platform as Platform, parsed);
+            updateCookie(msg.platform as Platform, parsed);
+            vscode.window.showInformationMessage(`${platform.label} Cookie 导入成功`);
+            if (activePanel) {
+              activePanel.webview.postMessage({
+                type: 'cookie:status',
+                status: cookieManager.getAllStatus(),
+              });
+            }
+          } catch (e) {
+            vscode.window.showErrorMessage(`导入失败: ${e}`);
+          }
+        }
       } else if (msg.type === 'login:timeout') {
         panel.dispose();
         vscode.window.showWarningMessage('登录超时，请重试');
