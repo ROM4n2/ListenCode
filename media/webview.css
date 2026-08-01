@@ -336,6 +336,16 @@ body {
 
 .btn-icon.active { border-color: var(--accent); }
 
+#modeBtn {
+  width: auto;
+  padding: 0 10px;
+  font-size: 11px;
+}
+#modeBtn.active {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
 .player-progress {
   flex: 1;
   display: flex;

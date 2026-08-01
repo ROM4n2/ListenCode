@@ -1,5 +1,5 @@
 import { Track } from '../types';
-import { createHttpClient } from './http';
+import { createHttpClient, UA } from './http';
 
 const client = createHttpClient('bilibili');
 
@@ -52,7 +52,11 @@ export async function search(keyword: string, limit = 20): Promise<Track[]> {
   const response = await client.get<BiliSearchResponse>(url, {
     params,
     headers: {
+      'User-Agent': UA,
+      'Referer': 'https://search.bilibili.com/',
+      'Origin': 'https://search.bilibili.com',
       'Accept': 'application/json, text/plain, */*',
+      'Accept-Language': 'zh-CN,zh;q=0.9',
     },
   });
   const results = response.data.data?.result ?? [];

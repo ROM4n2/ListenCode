@@ -31,12 +31,13 @@
   let playMode = 'list'; // 'list' | 'single' | 'shuffle'
 
   const MODE_ORDER = ['list', 'single', 'shuffle'];
-  const MODE_ICON = { list: '🔁', single: '🔂', shuffle: '🔀' };
   const MODE_LABEL = { list: '列表循环', single: '单曲循环', shuffle: '随机播放' };
 
   function updateModeBtn() {
-    modeBtn.textContent = MODE_ICON[playMode];
-    modeBtn.title = `播放模式：${MODE_LABEL[playMode]}`;
+    const idx = MODE_ORDER.indexOf(playMode);
+    const nextMode = MODE_ORDER[(idx + 1) % MODE_ORDER.length];
+    modeBtn.textContent = MODE_LABEL[playMode];
+    modeBtn.title = `切换到: ${MODE_LABEL[nextMode]}`;
     modeBtn.classList.toggle('active', playMode !== 'list');
   }
 
