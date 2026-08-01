@@ -17,7 +17,7 @@
       margin-bottom: 16px; box-shadow: 0 2px 8px rgba(0,0,0,0.1);
       width: 200px; height: 200px; display: flex; align-items: center; justify-content: center;
     }
-    .qr-container canvas, .qr-container img { width: 100%; height: 100%; display: block; image-rendering: pixelated; }
+    .qr-container img { width: 200px; height: 200px; display: block; image-rendering: pixelated; }
     .status { font-size: 13px; color: var(--vscode-descriptionForeground); margin-bottom: 16px; min-height: 20px; }
     .status.success { color: var(--vscode-testing-iconPassed); }
     .status.error { color: var(--vscode-errorForeground); }
@@ -31,9 +31,9 @@
 <body>
   <div class="icon" id="icon">🎵</div>
   <h2 id="title">登录</h2>
-  <p>使用手机 App 扫描二维码登录</p>
+  <p id="hint">使用手机 App 扫描二维码登录</p>
   <div class="qr-container" id="qr-container">
-    <span id="qr-placeholder">加载中...</span>
+    <span>加载中...</span>
   </div>
   <div id="status" class="status">正在获取二维码...</div>
   <div>
@@ -43,12 +43,6 @@
     <p>二维码登录遇到问题？</p>
     <button class="btn btn-secondary" id="pasteBtn">手动粘贴 Cookie</button>
   </div>
-
-  <!-- 纯 JS 二维码生成器 (qrcode-generator 精简版) -->
-  <script>
-  var qrcode=function(){function r(t,e){this.errorCorrectionLevel=e,this.typeNumber=t,this.moduleCount=4*t+17,this.modules=null,this.moduleCount>21&&(this.moduleCount=4*t+17);var n=[],i=0,o=0,s=0,a=0,h=0,u=0,l=0,c=0;for(this.modules=new Array(this.moduleCount),e=0;e<this.moduleCount;e){this.modules[e]=new Array(this.moduleCount);for(var n=new Array(this.moduleCount),i=0;i<this.moduleCount;i++)n[i]=null;this.modules[e]=n}}return r.RS_BLOCK_TABLE=[1,26,19],[1,26,16],[1,26,13],[1,26,9],[1,44,34],[1,44,28],[1,44,22],[1,44,16],[1,70,55],[1,70,44],[1,35,17],[1,35,13],[1,100,80],[1,50,32],[1,50,24],[1,25,9],[1,120,98],[1,60,48],[1,40,24],[1,24,10],[1,144,116],[1,72,52],[1,48,28],[1,28,12],[1,168,140],[1,84,60],[1,56,32],[1,32,14],[1,196,164],[1,98,72],[1,64,36],[1,36,16],[1,224,192],[1,112,80],[1,72,40],[1,40,18],[1,258,224],[1,129,96],[1,80,48],[1,44,20],[1,292,256],[1,146,112],[1,88,56],[1,48,22],r.getRSBlocks=function(t,e){var n=r.getRsBlockTable(t,e);if(null==n)throw new Error("bad rs block @ typeNumber:"+t+"/errorCorrectionLevel:"+e);for(var i=n.length/3,o=new Array,s=0;s<i;s++)for(var a=n[3*s+0],h=n[3*s+1],u=n[3*s+2],l=0;l<a;l++)o.push({totalCount:h,dataCount:u});return o},r.getRsBlockTable=function(t,e){switch(e){case 1:return r.RS_BLOCK_TABLE[4*(t-1)+0];case 0:return r.RS_BLOCK_TABLE[4*(t-1)+1];case 3:return r.RS_BLOCK_TABLE[4*(t-1)+2];case 2:return r.RS_BLOCK_TABLE[4*(t-1)+3];default:return}},r.prototype={getModuleCount:function(){return this.moduleCount},isDark:function(t,e){return 0>t||t>=this.moduleCount||0>e||e>=this.moduleCount?!1:this.modules[t][e]},make:function(){this.makeImpl(!1,this.getBestMaskPattern())},makeImpl:function(t,e){this.moduleCount=4*this.typeNumber+17,this.modules=new Array(this.moduleCount);for(var n=0;n<this.moduleCount;n++){this.modules[n]=new Array(this.moduleCount);for(var i=0;i<this.moduleCount;i++)this.modules[n][i]=null}this.setupPositionProbePattern(0,0),this.setupPositionProbePattern(this.moduleCount-7,0),this.setupPositionProbePattern(0,this.moduleCount-7),this.setupPositionAdjustPattern(),this.setupTimingPattern(),this.setupTypeInfo(t,e),this.typeNumber>=7&&this.setupTypeNumber(t),null==this.dataMap&&(this.dataMap=r.createData(this.typeNumber,this.errorCorrectionLevel,this.dataList)),this.mapData(this.dataMap,e)},setupPositionProbePattern:function(t,e){for(var n=-1;7>=n;n++)if(!(-1>=t+n||t+n>=this.moduleCount))for(var i=-1;7>=i;i++)-1>=e+i||e+i>=this.moduleCount||(this.modules[t+n][e+i]=n>=0&&6>=n&&(0==i||6==i)||i>=0&&6>=i&&(0==n||6==n)||n>=2&&4>=n&&i>=2&&4>=i?!0:!1)},getBestMaskPattern:function(){for(var t=0,e=0,n=0;8>n;n++){this.makeImpl(!0,n);var i=r.getLostPoint(this);(0==n||t>i)&&(t=i,e=n)}return e},createMovieClip:function(t,e,n){var i=t.createEmptyMovieClip(e,n);this.make();for(var o=0;o<this.modules.length;o++)for(var s=1*o,a=0;a<this.modules[o].length;a++){var h=1*a;this.modules[o][a]&&(i.beginFill(0,100),i.moveTo(h,s),i.lineTo(h+1,s),i.lineTo(h+1,s+1),i.lineTo(h,s+1),i.endFill())}return i},setupTimingPattern:function(){for(var t=8;t<this.moduleCount-8;t++)null==this.modules[t][6]&&(this.modules[t][6]=t%2==0);for(var e=8;e<this.moduleCount-8;e++)null==this.modules[6][e]&&(this.modules[6][e]=e%2==0)},setupPositionAdjustPattern:function(){for(var t=r.getPatternPosition(this.typeNumber),e=0;e<t.length;e++)for(var n=0;n<t.length;n++){var i=t[e],o=t[n];if(null==this.modules[i][o])for(var s=-2;2>=s;s++)for(var a=-2;2>=a;a++)this.modules[i+s][o+a]=-2==s||2==s||-2==a||2==a||0==s&&0==a?!0:!1}},setupTypeNumber:function(t){for(var e=r.getBCHTypeNumber(this.typeNumber),n=0;18>n;n++){var i=!t&&1==(e>>n&1);this.modules[Math.floor(n/3)][n%3+this.moduleCount-8-3]=i}for(var n=0;18>n;n++){var i=!t&&1==(e>>n&1);this.modules[n%3+this.moduleCount-8-3][Math.floor(n/3)]=i}},setupTypeInfo:function(t,e){for(var n=this.errorCorrectionLevel<<3|e,i=r.getBCHTypeInfo(n),o=0;15>o;o++){var s=!t&&1==(i>>o&1);6>o?this.modules[o][8]=s:8>o?this.modules[o+1][8]=s:this.modules[this.moduleCount-15+o][8]=s}for(var o=0;15>o;o++){var s=!t&&1==(i>>o&1);8>o?this.modules[8][this.moduleCount-o-1]=s:9>o?this.modules[8][15-o-1+1]=s:this.modules[8][15-o-1]=s}this.modules[this.moduleCount-8][8]=!t},mapData:function(t,e){for(var n=-1,i=this.moduleCount-1,o=7,s=0,a=this.moduleCount-1;a>0;a-=2)for(6==a&&a--;;){for(var h=0;2>h;h++)if(null==this.modules[i][a-h]){var u=!1;s<t.length&&(u=1==(t[s]>>>o&1));var l=r.getMask(e,i,a-h);l&&(u=!u),this.modules[i][a-h]=u,o--,-1==o&&(s++,o=7)}if(i+=n,0>i||i>=this.moduleCount){i-=n,n=-n;break}}}},r.PAD0=236,r.PAD1=17,r.getMask=function(t,e,n){switch(t){case 0:return(e+n)%2==0;case 1:return e%2==0;case 2:return n%3==0;case 3:return(e+n)%3==0;case 4:return(Math.floor(e/2)+Math.floor(n/3))%2==0;case 5:return e*n%2+e*n%3==0;case 6:return(e*n%2+e*n%3)%2==0;case 7:return(e*n%3+(e+n)%2)%2==0;default:throw new Error("bad maskPattern:"+t)}},r.getBCHTypeInfo=function(t){for(var e=t<<10;r.getBCHDigit(e)-r.getBCHDigit(r.G15)>=0;)e^=r.G15<<r.getBCHDigit(e)-r.getBCHDigit(r.G15);return(t<<10|e)^r.G125},r.getBCHTypeNumber=function(t){for(var e=t<<12;r.getBCHDigit(e)-r.getBCHDigit(r.G18)>=0;)e^=r.G18<<r.getBCHDigit(e)-r.getBCHDigit(r.G18);return t<<12|e},r.getBCHDigit=function(t){for(var e=0;0!=t;)e++,t>>>=1;return e},r.getPatternPosition=function(t){return r.PATTERN_POSITION_TABLE[t-1]},r.PATTERN_POSITION_TABLE=[[6,18],[6,22],[6,26],[6,30],[6,34],[6,22,38],[6,24,42],[6,26,46],[6,28,50],[6,30,54],[6,32,58],[6,34,62],[6,26,46,66],[6,26,48,70],[6,26,50,74],[6,30,54,78],[6,30,56,82],[6,30,58,86],[6,34,62,90],[6,28,50,72,94],[6,26,50,74,98],[6,30,54,78,102],[6,28,54,80,106],[6,32,58,84,110],[6,30,58,86,114],[6,34,62,90,118],[6,26,50,74,98,122],[6,30,54,78,102,126],[6,26,52,78,104,130],[6,30,56,82,108,134],[6,34,60,86,112,138],[6,30,58,86,110,142],[6,34,62,90,114,146],[6,30,54,78,102,126,150],[6,24,50,76,102,128,154],[6,28,54,80,106,132,158],[6,32,58,84,110,136,162],[6,26,54,82,110,138,166],[6,30,58,86,114,142,170]],r.getLostPoint=function(t){for(var e=t.getModuleCount(),n=0,i=0,o=0;e>o;o++)for(var s=0;e>s;s++){for(var a=0,h=t.isDark(o,s),u=-1;1>=u;u++)if(!(0>o+u||o+u>=e))for(var l=-1;1>=l;l++)0>s+l||s+l>=e||0==u&&0==l||h==t.isDark(o+u,s+l)&&a++;a>5&&(n+=3+a-5)}for(var o=0;e-1>o;o++)for(var s=0;e-1>s;s++){var c=0;t.isDark(o,s)&&c++,t.isDark(o+1,s)&&c++,t.isDark(o,s+1)&&c++,t.isDark(o+1,s+1)&&c++,(0==c||4==c)&&(n+=3)}for(var o=0;e>o;o++)for(var s=0;e-6>s;s++)t.isDark(o,s)&&!t.isDark(o,s+1)&&t.isDark(o,s+2)&&t.isDark(o,s+3)&&t.isDark(o,s+4)&&!t.isDark(o,s+5)&&t.isDark(o,s+6)&&(n+=40);for(var s=0;e>s;s++)for(var o=0;e-6>o;o++)t.isDark(o,s)&&!t.isDark(o+1,s)&&t.isDark(o+2,s)&&t.isDark(o+3,s)&&t.isDark(o+4,s)&&!t.isDark(o+5,s)&&t.isDark(o+6,s)&&(n+=40);for(var d=0,s=0;e>s;s++)for(var o=0;e>o;o++)t.isDark(o,s)&&d++;var f=Math.abs(100*d/e/e-50)/5;return n+=10*f},r.createData=function(t,e,n){for(var i=r.getRSBlocks(t,e),o=new Array,s=0;s<n.length;s++){var a=n[s];o.push(a.mode,{data:a.data})}var h=addData(o,i);if(h.length>i[0].totalCount)throw new Error("Too long. ("+h.length+">"+i[0].totalCount+")");for(var u=h.length;u<i[0].totalCount;u++)h.push(0);return h},r.QR8bitByte=function(t){this.mode=4,this.data=t},r.QRCode=function(t,e){this.typeNumber=t,this.errorCorrectionLevel=e,this.modules=null,this.moduleCount=0,this.dataList=[],this.dataCache=null};var t=0,e=1,n=2,i=3,o=4,s=5,a=6,h=7;return r.QRCode.prototype={addData:function(t,e){e=e||"Byte";var n;switch(e){case"Numeric":n=new r.QRNumber(t);break;case"Alphanumeric":n=new r.QRAlphanumeric(t);break;case"Byte":n=new r.QR8bitByte(t);break;case"Kanji":n=new r.QRKanji(t);break;default:throw"Mode:"+e}this.dataList.push(n),this.dataCache=null},isDark:function(t,e){return 0>t||t>=this.moduleCount||0>e||e>=this.moduleCount?!1:this.modules[t][e]},getModuleCount:function(){return this.moduleCount},make:function(){this.makeImpl(!1,this.getBestMaskPattern())},makeImpl:function(t,e){this.moduleCount=4*this.typeNumber+17,this.modules=new Array(this.moduleCount);for(var n=0;n<this.moduleCount;n++){this.modules[n]=new Array(this.moduleCount);for(var i=0;i<this.moduleCount;i++)this.modules[n][i]=null}this.setupPositionProbePattern(0,0),this.setupPositionProbePattern(this.moduleCount-7,0),this.setupPositionProbePattern(0,this.moduleCount-7),this.setupPositionAdjustPattern(),this.setupTimingPattern(),this.setupTypeInfo(t,e),this.typeNumber>=7&&this.setupTypeNumber(t),null==this.dataMap&&(this.dataMap=r.createData(this.typeNumber,this.errorCorrectionLevel,this.dataList)),this.mapData(this.dataMap,e)}},r.QRNumber=function(t){this.mode=1,this.data=t},r.QRAlphanumeric=function(t){this.mode=2,this.data=t},r.QRKanji=function(t){this.mode=3,this.data=t},r}();
-  </script>
-
   <script>
     var vscode = acquireVsCodeApi();
     var platform = '{{PLATFORM}}';
@@ -59,8 +53,6 @@
     var statusEl = document.getElementById('status');
     var refreshBtn = document.getElementById('refreshBtn');
     var pasteBtn = document.getElementById('pasteBtn');
-    var iconEl = document.getElementById('icon');
-    var titleEl = document.getElementById('title');
 
     // 平台配置
     var PLATFORM_CONFIG = {
@@ -70,30 +62,20 @@
       kugou: { icon: '🎸', name: '酷狗音乐', hint: '暂不支持扫码登录，请手动导入 Cookie' },
     };
     var config = PLATFORM_CONFIG[platform] || PLATFORM_CONFIG.netease;
-    iconEl.textContent = config.icon;
-    titleEl.textContent = '登录' + config.name;
-    document.querySelector('p').textContent = config.hint;
+    document.getElementById('icon').textContent = config.icon;
+    document.getElementById('title').textContent = '登录' + config.name;
+    document.getElementById('hint').textContent = config.hint;
 
-    // 状态码配置
+    // 状态码
     var STATUS = platform === 'bilibili'
       ? { wait: 86101, scanned: 86090, success: 0, expired: 86038 }
       : { wait: 801, scanned: 802, success: 803, expired: 800 };
-
-    // 生成二维码图片
-    function generateQR(text) {
-      qrContainer.innerHTML = '';
-      var qr = qrcode(4, 'L');
-      qr.addData(text);
-      qr.make();
-      var img = qr.createImgTag(6, 8);
-      qrContainer.innerHTML = img;
-    }
 
     function startLogin() {
       if (pollTimer) { clearInterval(pollTimer); pollTimer = null; }
       statusEl.textContent = '正在获取二维码...';
       statusEl.className = 'status';
-      qrContainer.innerHTML = '<span id="qr-placeholder">加载中...</span>';
+      qrContainer.innerHTML = '<span>加载中...</span>';
       vscode.postMessage({ type: 'login:start' });
     }
 
@@ -111,10 +93,9 @@
     window.addEventListener('message', function (event) {
       var msg = event.data;
       if (msg.type === 'login:qrcode') {
-        // 提取 key 并生成二维码
-        var match = msg.url.match(/(?:codekey|qrcode_key)=([^&]+)/);
-        currentUnikey = match ? match[1] : '';
-        generateQR(msg.url);
+        // 扩展端已生成二维码图片 Data URL，直接显示
+        qrContainer.innerHTML = '<img src="' + msg.url + '" alt="二维码">';
+        currentUnikey = msg.key || '';
         statusEl.textContent = '等待扫码...';
         statusEl.className = 'status';
         if (pollTimer) { clearInterval(pollTimer); }
@@ -134,6 +115,9 @@
           statusEl.textContent = '二维码已过期，请刷新';
           statusEl.className = 'status error';
           if (pollTimer) { clearInterval(pollTimer); pollTimer = null; }
+        } else if (code === -1) {
+          statusEl.textContent = msg.status.message || '获取二维码失败';
+          statusEl.className = 'status error';
         } else {
           statusEl.textContent = (msg.status.message || '未知状态') + ' (' + code + ')';
           statusEl.className = 'status error';

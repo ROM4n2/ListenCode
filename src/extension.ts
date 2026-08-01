@@ -3,7 +3,7 @@ import * as fs from 'fs';
 import { CookieManager, parseCookieInput } from './cookie';
 import { PlaylistManager } from './playlist';
 import { searchAll } from './search';
-import { resolvePlayUrl, preCheckPlayable, getUserPlaylists, getPlaylistTracks, neteaseQR, bilibiliQR } from './provider';
+import { resolvePlayUrl, preCheckPlayable, getUserPlaylists, getPlaylistTracks, neteaseQR, bilibiliQR, generateQRDataUrl } from './provider';
 import { updateCookie } from './provider/http';
 import { WebviewRequest, Track, Playlist, Platform } from './types';
 import { getHistory, addHistory } from './search-history';
@@ -173,8 +173,10 @@ export function activate(context: vscode.ExtensionContext) {
       } else if (msg.type === 'login:start') {
         try {
           qrKey = await qr.getKey();
-          const qrUrl = qr.getUrl(qrKey);
-          panel.webview.postMessage({ type: 'login:qrcode', url: qrUrl });
+          const qrText = qr.getUrl(qrKey);
+          // 在扩展端生成二维码图片 Data URL
+          const dataUrl = await generateQRDataUrl(qrText);
+          panel.webview.postMessage({ type: 'login:qrcode', url: dataUrl, key: qrKey });
         } catch (e: any) {
           panel.webview.postMessage({ type: 'login:status', status: { code: -1, message: '获取二维码失败: ' + (e.message || e) } });
         }

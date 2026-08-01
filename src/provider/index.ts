@@ -1,9 +1,15 @@
+import * as QRCode from 'qrcode';
 import { Track, Platform } from '../types';
 import * as netease from './netease';
 import * as qq from './qq';
 import * as kugou from './kugou';
 import * as bilibili from './bilibili';
 import { PlaylistSummary } from './netease';
+
+// 生成二维码 Data URL（在扩展端生成，WebView 直接显示）
+export async function generateQRDataUrl(text: string): Promise<string> {
+  return QRCode.toDataURL(text, { width: 200, margin: 2 });
+}
 
 // 二维码登录函数按平台导出
 export const neteaseQR = {
