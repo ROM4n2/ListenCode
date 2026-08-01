@@ -1,5 +1,6 @@
 import axios, { AxiosInstance } from 'axios';
 import { Platform } from '../types';
+import { CookieManager } from '../cookie';
 
 const PLATFORM_DOMAINS: Record<Platform, string> = {
   netease: 'music.163.com',
@@ -17,23 +18,22 @@ const REFERER_MAP: Record<Platform, string> = {
 
 const UA = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36';
 
-let cookieStore: Record<Platform, string> = {
-  netease: '',
-  qq: '',
-  kugou: '',
-  bilibili: '',
-};
+let cookieManager: CookieManager | null = null;
+
+export function initCookieStore(manager: CookieManager): void {
+  cookieManager = manager;
+}
 
 export function updateCookie(platform: Platform, cookie: string): void {
-  cookieStore[platform] = cookie;
+  cookieManager?.importCookie(platform, cookie);
 }
 
 export function getCookie(platform: Platform): string {
-  return cookieStore[platform] || '';
+  return cookieManager?.getCookieHeader(platform) || '';
 }
 
 function getCookieHeader(platform: Platform): string {
-  return cookieStore[platform] || '';
+  return getCookie(platform);
 }
 
 export function createHttpClient(platform: Platform): AxiosInstance {

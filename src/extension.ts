@@ -4,7 +4,7 @@ import { CookieManager, parseCookieInput } from './cookie';
 import { PlaylistManager } from './playlist';
 import { searchAll } from './search';
 import { resolvePlayUrl, preCheckPlayable, getUserPlaylists, getPlaylistTracks, neteaseQR, bilibiliQR, generateQRDataUrl } from './provider';
-import { updateCookie } from './provider/http';
+import { initCookieStore } from './provider/http';
 import { WebviewRequest, Track, Playlist, Platform } from './types';
 import { getHistory, addHistory } from './search-history';
 import { startAudioServer, getAudioUrl } from './audio-server';
@@ -24,6 +24,7 @@ export function activate(context: vscode.ExtensionContext) {
   extensionContext = context;
   cookieManager = new CookieManager(context);
   playlistManager = new PlaylistManager(context);
+  initCookieStore(cookieManager);
 
   // 创建状态栏
   statusBarItem = vscode.window.createStatusBarItem(vscode.StatusBarAlignment.Left);
@@ -105,18 +106,33 @@ export function activate(context: vscode.ExtensionContext) {
     });
     if (!uri || uri.length === 0) {return;}
     const content = await vscode.workspace.fs.readFile(uri[0]);
-    const data = JSON.parse(content.toString());
-    if (data.playlists && Array.isArray(data.playlists)) {
-      for (const pl of data.playlists) {
-        const playlist = playlistManager.create(pl.name);
-        for (const track of pl.tracks || []) {
-          playlistManager.addTrack(playlist.id, track);
-        }
+    let data: any;
+    try {
+      data = JSON.parse(content.toString());
+    } catch (e) {
+      vscode.window.showErrorMessage('导入失败: JSON 解析错误，文件可能已损坏');
+      return;
+    }
+    if (!data.playlists || !Array.isArray(data.playlists)) {
+      vscode.window.showErrorMessage('导入失败: 文件格式不正确，缺少 playlists 数组');
+      return;
+    }
+    let imported = 0;
+    let skipped = 0;
+    for (const pl of data.playlists) {
+      if (typeof pl.name !== 'string' || !Array.isArray(pl.tracks)) {
+        skipped++;
+        continue;
       }
-      vscode.window.showInformationMessage(`已导入 ${data.playlists.length} 个歌单`);
-      if (activePanel) {
-        activePanel.webview.postMessage({ type: 'playlist:list', playlists: playlistManager.getAll() });
+      const playlist = playlistManager.create(pl.name);
+      for (const track of pl.tracks) {
+        playlistManager.addTrack(playlist.id, track);
       }
+      imported++;
+    }
+    vscode.window.showInformationMessage(`已导入 ${imported} 个歌单${skipped > 0 ? `，跳过 ${skipped} 条无效数据` : ''}`);
+    if (activePanel) {
+      activePanel.webview.postMessage({ type: 'playlist:list', playlists: playlistManager.getAll() });
     }
   });
 
@@ -161,7 +177,6 @@ export function activate(context: vscode.ExtensionContext) {
           try {
             const parsed = parseCookieInput(raw);
             cookieManager.importCookie(msg.platform as Platform, parsed);
-            updateCookie(msg.platform as Platform, parsed);
             vscode.window.showInformationMessage(`${platform.label} 登录成功`);
             if (activePanel) {
               activePanel.webview.postMessage({ type: 'cookie:status', status: cookieManager.getAllStatus() });
@@ -202,7 +217,6 @@ export function activate(context: vscode.ExtensionContext) {
           if (success && cookieStr) {
             const parsed = parseCookieInput(cookieStr);
             cookieManager.importCookie(platformName as Platform, parsed);
-            updateCookie(platformName as Platform, parsed);
             panel.dispose();
             vscode.window.showInformationMessage(`${platform.label} 登录成功`);
             if (activePanel) {
@@ -240,7 +254,6 @@ export function activate(context: vscode.ExtensionContext) {
     try {
       const parsed = parseCookieInput(raw);
       cookieManager.importCookie(platform.value as Platform, parsed);
-      updateCookie(platform.value as Platform, parsed);
       vscode.window.showInformationMessage(`${platform.label} Cookie 导入成功`);
     } catch (e) {
       vscode.window.showErrorMessage(`导入失败: ${e}`);
@@ -403,7 +416,6 @@ async function handleWebviewMessage(webview: vscode.Webview, msg: WebviewRequest
       try {
         const parsed = parseCookieInput(msg.raw);
         cookieManager.importCookie(msg.platform as any, parsed);
-        updateCookie(msg.platform as any, parsed);
         webview.postMessage({ type: 'cookie:status', platform: msg.platform, valid: true });
       } catch (e: any) {
         webview.postMessage({ type: 'error', message: e.message });
