@@ -329,12 +329,24 @@
         break;
       case 'player:resolve':
         if (msg.url) {
-          audioPlayer.src = msg.url;
-          audioPlayer.play().then(() => {
-            playPauseBtn.textContent = '⏸';
-            sendPlayerState(true);
+          // 用 blob 加载，避免 B站等需要 Referer 头的平台播放失败
+          loadAudioBlob(msg.url).then(blobUrl => {
+            audioPlayer.src = blobUrl;
+            audioPlayer.play().then(() => {
+              playPauseBtn.textContent = '⏸';
+              sendPlayerState(true);
+            }).catch((err) => {
+              showError('播放失败: ' + err.message);
+            });
           }).catch((err) => {
-            showError('播放失败: ' + err.message);
+            // blob 失败回退到直接 src
+            audioPlayer.src = msg.url;
+            audioPlayer.play().then(() => {
+              playPauseBtn.textContent = '⏸';
+              sendPlayerState(true);
+            }).catch((err2) => {
+              showError('播放失败: ' + err2.message);
+            });
           });
         } else {
           showError('无法获取播放地址（可能需要导入 Cookie）');
@@ -453,6 +465,18 @@
   }
 
   // 错误提示（不覆盖搜索结果，用临时 toast）
+  // 用 blob 加载音频（解决 B站等需要 Referer 头的问题）
+  function loadAudioBlob(url) {
+    return fetch(url, {
+      headers: {
+        'Referer': 'https://www.bilibili.com/',
+      },
+    }).then(res => {
+      if (!res.ok) {throw new Error('HTTP ' + res.status);}
+      return res.blob();
+    }).then(blob => URL.createObjectURL(blob));
+  }
+
   function showError(message) {
     const toast = document.createElement('div');
     toast.className = 'error-toast';
