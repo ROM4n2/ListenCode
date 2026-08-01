@@ -1,8 +1,6 @@
 import * as vscode from 'vscode';
 import { Platform, ALL_PLATFORMS } from './types';
 
-const COOKIE_KEY = 'listencode.cookies';
-
 export class CookieManager {
   private cookies: Record<string, string> = {};
   private context: vscode.ExtensionContext;
@@ -12,21 +10,27 @@ export class CookieManager {
     this.load();
   }
 
-  private load(): void {
-    const stored = this.context.globalState.get<Record<string, string>>(COOKIE_KEY, {});
-    this.cookies = stored;
+  private async load(): Promise<void> {
+    const stored = await this.context.secrets.get('listencode.cookies');
+    if (stored) {
+      try {
+        this.cookies = JSON.parse(stored);
+      } catch {
+        this.cookies = {};
+      }
+    }
   }
 
-  private save(): void {
-    this.context.globalState.update(COOKIE_KEY, this.cookies);
+  private async save(): Promise<void> {
+    await this.context.secrets.store('listencode.cookies', JSON.stringify(this.cookies));
   }
 
-  importCookie(platform: Platform, rawCookie: string): void {
+  async importCookie(platform: Platform, rawCookie: string): Promise<void> {
     if (!rawCookie.trim()) {
       throw new Error('Cookie 不能为空');
     }
     this.cookies[platform] = rawCookie.trim();
-    this.save();
+    await this.save();
   }
 
   getCookieHeader(platform: string): string {
@@ -49,9 +53,9 @@ export class CookieManager {
     return result;
   }
 
-  remove(platform: string): void {
+  async remove(platform: string): Promise<void> {
     delete this.cookies[platform];
-    this.save();
+    await this.save();
   }
 }
 

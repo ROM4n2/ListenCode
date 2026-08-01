@@ -186,7 +186,7 @@ export function activate(context: vscode.ExtensionContext) {
         if (raw) {
           try {
             const parsed = parseCookieInput(raw);
-            cookieManager.importCookie(msg.platform as Platform, parsed);
+            await cookieManager.importCookie(msg.platform as Platform, parsed);
             vscode.window.showInformationMessage(`${platform.label} 登录成功`);
             if (activePanel) {
               activePanel.webview.postMessage({ type: 'cookie:status', status: cookieManager.getAllStatus() });
@@ -226,7 +226,7 @@ export function activate(context: vscode.ExtensionContext) {
 
           if (success && cookieStr) {
             const parsed = parseCookieInput(cookieStr);
-            cookieManager.importCookie(platformName as Platform, parsed);
+            await cookieManager.importCookie(platformName as Platform, parsed);
             panel.dispose();
             vscode.window.showInformationMessage(`${platform.label} 登录成功`);
             if (activePanel) {
@@ -263,7 +263,7 @@ export function activate(context: vscode.ExtensionContext) {
 
     try {
       const parsed = parseCookieInput(raw);
-      cookieManager.importCookie(platform.value as Platform, parsed);
+      await cookieManager.importCookie(platform.value as Platform, parsed);
       vscode.window.showInformationMessage(`${platform.label} Cookie 导入成功`);
     } catch (e) {
       vscode.window.showErrorMessage(`导入失败: ${e}`);
@@ -445,7 +445,7 @@ async function handleWebviewMessage(webview: vscode.Webview, msg: WebviewRequest
     case 'cookie:import': {
       try {
         const parsed = parseCookieInput(msg.raw);
-        cookieManager.importCookie(msg.platform as any, parsed);
+        await cookieManager.importCookie(msg.platform as any, parsed);
         webview.postMessage({ type: 'cookie:status', platform: msg.platform, valid: true });
       } catch (e: any) {
         webview.postMessage({ type: 'error', message: e.message });
