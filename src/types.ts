@@ -34,7 +34,8 @@ export type WebviewRequest =
   | { type: 'playlist:add'; playlistId: string; track: Track }
   | { type: 'playlist:remove'; playlistId: string; trackId?: string }
   | { type: 'playlist:load' }
-  | { type: 'cookie:import'; platform: string; raw: string };
+  | { type: 'cookie:import'; platform: string; raw: string }
+  | { type: 'player:state'; playing: boolean; track: Track | null };
 
 // Extension Host → WebView
 export type WebviewResponse =

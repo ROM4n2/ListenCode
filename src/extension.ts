@@ -10,36 +10,70 @@ let cookieManager: CookieManager;
 let playlistManager: PlaylistManager;
 const playableStatus = new Map<string, boolean>();
 
+// 播放状态跟踪
+let currentPlayingTrack: Track | null = null;
+let isPlaying = false;
+let activePanel: vscode.WebviewPanel | null = null;
+let statusBarItem: vscode.StatusBarItem;
+
 export function activate(context: vscode.ExtensionContext) {
   cookieManager = new CookieManager(context);
   playlistManager = new PlaylistManager(context);
 
+  // 创建状态栏
+  statusBarItem = vscode.window.createStatusBarItem(vscode.StatusBarAlignment.Left);
+  statusBarItem.command = 'listencode.togglePlay';
+  context.subscriptions.push(statusBarItem);
+
   // 注册打开播放器命令
   const openPlayerCmd = vscode.commands.registerCommand('listencode.openPlayer', () => {
-    const panel = vscode.window.createWebviewPanel(
-      'listencode.player',
-      'ListenCode',
-      vscode.ViewColumn.One,
-      {
-        enableScripts: true,
-        retainContextWhenHidden: true,
-        localResourceRoots: [
-          vscode.Uri.joinPath(context.extensionUri, 'media'),
-        ],
-      }
-    );
-
-    panel.webview.html = getWebviewHtml(panel.webview, context.extensionUri);
-
-    // 发送初始 cookie 状态
-    panel.webview.postMessage({
-      type: 'cookie:status',
-      status: cookieManager.getAllStatus(),
-    });
+    const panel = createPlayerPanel(context);
 
     panel.webview.onDidReceiveMessage(async (msg: WebviewRequest) => {
       handleWebviewMessage(panel.webview, msg);
     });
+  });
+
+  // 注册快速播放命令
+  const quickPlayCmd = vscode.commands.registerCommand('listencode.quickPlay', async () => {
+    const keyword = await vscode.window.showInputBox({
+      placeHolder: '输入歌名搜索歌曲',
+      prompt: '快速播放',
+    });
+    if (!keyword) {return;}
+
+    let tracks: Track[];
+    try {
+      tracks = await searchAll(keyword, ['netease', 'qq', 'kugou', 'bilibili']);
+    } catch (e: any) {
+      vscode.window.showErrorMessage(`搜索失败: ${e.message || e}`);
+      return;
+    }
+
+    const playable = await preCheckPlayable(tracks);
+    const firstPlayable = tracks.find((t) => playable.get(t.id));
+
+    if (!firstPlayable) {
+      vscode.window.showWarningMessage('未找到可播放的歌曲');
+      return;
+    }
+
+    // 打开面板并通知自动播放
+    const panel = createPlayerPanel(context);
+    panel.webview.onDidReceiveMessage(async (msg: WebviewRequest) => {
+      handleWebviewMessage(panel.webview, msg);
+    });
+    // 延迟发送，确保 WebView 已就绪
+    setTimeout(() => {
+      panel.webview.postMessage({ type: 'autoplay', track: firstPlayable });
+    }, 500);
+  });
+
+  // 注册暂停/播放切换命令
+  const togglePlayCmd = vscode.commands.registerCommand('listencode.togglePlay', () => {
+    if (activePanel) {
+      activePanel.webview.postMessage({ type: 'player:toggle' });
+    }
   });
 
   // 注册导入 cookie 命令
@@ -70,7 +104,59 @@ export function activate(context: vscode.ExtensionContext) {
     }
   });
 
-  context.subscriptions.push(openPlayerCmd, importCookieCmd);
+  context.subscriptions.push(openPlayerCmd, quickPlayCmd, togglePlayCmd, importCookieCmd);
+}
+
+function createPlayerPanel(context: vscode.ExtensionContext): vscode.WebviewPanel {
+  if (activePanel) {
+    activePanel.reveal(vscode.ViewColumn.One);
+    return activePanel;
+  }
+
+  const panel = vscode.window.createWebviewPanel(
+    'listencode.player',
+    'ListenCode',
+    vscode.ViewColumn.One,
+    {
+      enableScripts: true,
+      retainContextWhenHidden: true,
+      localResourceRoots: [
+        vscode.Uri.joinPath(context.extensionUri, 'media'),
+      ],
+    }
+  );
+
+  activePanel = panel;
+
+  panel.webview.html = getWebviewHtml(panel.webview, context.extensionUri);
+
+  // 发送初始 cookie 状态
+  panel.webview.postMessage({
+    type: 'cookie:status',
+    status: cookieManager.getAllStatus(),
+  });
+
+  panel.onDidDispose(() => {
+    activePanel = null;
+    currentPlayingTrack = null;
+    isPlaying = false;
+    statusBarItem.hide();
+  });
+
+  return panel;
+}
+
+function updateStatusBar(track: Track | null, playing: boolean) {
+  if (!track) {
+    statusBarItem.hide();
+    return;
+  }
+  if (playing) {
+    statusBarItem.text = '♪ ' + track.title + ' - ' + track.artist;
+  } else {
+    statusBarItem.text = '⏸ ' + track.title + ' - ' + track.artist;
+  }
+  statusBarItem.show();
 }
 
 async function handleWebviewMessage(webview: vscode.Webview, msg: WebviewRequest) {
@@ -139,6 +225,12 @@ async function handleWebviewMessage(webview: vscode.Webview, msg: WebviewRequest
       } catch (e: any) {
         webview.postMessage({ type: 'error', message: e.message });
       }
+      break;
+    }
+    case 'player:state': {
+      currentPlayingTrack = msg.track;
+      isPlaying = msg.playing;
+      updateStatusBar(msg.track, msg.playing);
       break;
     }
   }

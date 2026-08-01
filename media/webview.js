@@ -75,12 +75,21 @@
   function togglePlayPause() {
     if (!currentTrack) {return;}
     if (audioPlayer.paused) {
-      audioPlayer.play();
-      playPauseBtn.textContent = '⏸';
+      audioPlayer.play().then(() => {
+        playPauseBtn.textContent = '⏸';
+        sendPlayerState(true);
+      }).catch((err) => {
+        showError('播放失败: ' + err.message);
+      });
     } else {
       audioPlayer.pause();
       playPauseBtn.textContent = '▶';
+      sendPlayerState(false);
     }
+  }
+
+  function sendPlayerState(playing) {
+    vscode.postMessage({ type: 'player:state', playing, track: currentTrack });
   }
 
   function playNext() {
@@ -141,12 +150,23 @@
           audioPlayer.src = msg.url;
           audioPlayer.play().then(() => {
             playPauseBtn.textContent = '⏸';
+            sendPlayerState(true);
           }).catch((err) => {
             showError('播放失败: ' + err.message);
           });
         } else {
           showError('无法获取播放地址（可能需要导入 Cookie）');
         }
+        break;
+      case 'autoplay':
+        // 快速播放：自动填充搜索框、搜索并播放指定歌曲
+        searchInput.value = msg.track.title;
+        currentPlaylist = [msg.track];
+        currentIndex = 0;
+        playTrack(msg.track);
+        break;
+      case 'player:toggle':
+        togglePlayPause();
         break;
       case 'playable:status':
         Object.assign(playableStatus, msg.status);

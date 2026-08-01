@@ -21,6 +21,16 @@
         "category": "ListenCode"
       },
       {
+        "command": "listencode.quickPlay",
+        "title": "Quick Play",
+        "category": "ListenCode"
+      },
+      {
+        "command": "listencode.togglePlay",
+        "title": "Toggle Play/Pause",
+        "category": "ListenCode"
+      },
+      {
         "command": "listencode.importCookie",
         "title": "Import Cookie",
         "category": "ListenCode"
