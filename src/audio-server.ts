@@ -1,12 +1,37 @@
 import * as http from 'http';
-import * as vscode from 'vscode';
+import * as fs from 'fs';
+import * as path from 'path';
+import * as os from 'os';
 import axios from 'axios';
-import { getCookie } from './provider/http';
 import { resolvePlayUrl } from './provider';
-import { Platform } from './types';
 
 let server: http.Server | null = null;
 let port = 0;
+
+// 缓存目录
+function getCacheDir(): string {
+  const dir = path.join(os.tmpdir(), 'listencode_audio');
+  if (!fs.existsSync(dir)) {fs.mkdirSync(dir, { recursive: true });}
+  return dir;
+}
+
+// 清理旧文件（保留最近 50 个，每个最大 50MB）
+function cleanupCache(): void {
+  const dir = getCacheDir();
+  const files = fs.readdirSync(dir)
+    .map(f => {
+      const p = path.join(dir, f);
+      return { path: p, stat: fs.statSync(p) };
+    })
+    .sort((a, b) => b.stat.mtimeMs - a.stat.mtimeMs);
+
+  // 删除超过 50 个的旧文件
+  if (files.length > 50) {
+    files.slice(50).forEach(f => {
+      try { fs.unlinkSync(f.path); } catch { /* ignore */ }
+    });
+  }
+}
 
 export function getAudioServerPort(): number {
   return port;
@@ -17,49 +42,84 @@ export function startAudioServer(): Promise<number> {
 
   return new Promise((resolve) => {
     server = http.createServer(async (req, res) => {
-      const match = (req.url || '').match(/^\/(song|audio)\/(\w+)/);
+      const match = (req.url || '').match(/^\/song\/(.+)/);
       if (!match) {
         res.writeHead(404);
         res.end('Not found');
         return;
       }
 
-      const trackId = match[2];
+      const trackId = decodeURIComponent(match[1]);
+      const cacheDir = getCacheDir();
+      // 从 trackId 推断扩展名
+      const ext = trackId.startsWith('bibvid_') ? '.mp4' : '.mp3';
+      const cacheFile = path.join(cacheDir, `${trackId}${ext}`);
 
       try {
-        const { url, cookie } = await resolvePlayUrl(trackId);
-        if (!url) {
-          res.writeHead(404, { 'Content-Type': 'audio/*' });
-          res.end();
-          return;
+        // 如果缓存不存在，下载
+        if (!fs.existsSync(cacheFile)) {
+          const { url, cookie } = await resolvePlayUrl(trackId);
+          if (!url) {
+            res.writeHead(404, { 'Content-Type': 'audio/*' });
+            res.end();
+            return;
+          }
+
+          const headers: Record<string, string> = {
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+          };
+          if (cookie) { headers['Cookie'] = cookie; }
+          if (url.includes('bilibili') || url.includes('bilivideo')) {
+            headers['Referer'] = 'https://www.bilibili.com/';
+          }
+
+          const response = await axios.get(url, {
+            responseType: 'stream',
+            headers,
+            timeout: 60000,
+            maxContentLength: 100 * 1024 * 1024, // 最大 100MB
+          });
+
+          const writer = fs.createWriteStream(cacheFile);
+          response.data.pipe(writer);
+          await new Promise<void>((res, rej) => {
+            writer.on('finish', () => res());
+            writer.on('error', rej);
+          });
+
+          // 异步清理缓存
+          cleanupCache();
         }
 
-        // 流式代理音频
-        const headers: Record<string, string> = {
-          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
-        };
-        if (cookie) { headers['Cookie'] = cookie; }
-        if (url.includes('bilibili') || url.includes('bilivideo')) {
-          headers['Referer'] = 'https://www.bilibili.com/';
+        // 服务本地文件（支持 Range 请求）
+        const stat = fs.statSync(cacheFile);
+        const fileSize = stat.size;
+        const range = req.headers.range;
+
+        if (range) {
+          const parts = range.replace(/bytes=/, '').split('-');
+          const start = parseInt(parts[0], 10);
+          const end = parts[1] ? parseInt(parts[1], 10) : fileSize - 1;
+          const chunkSize = end - start + 1;
+
+          res.writeHead(206, {
+            'Content-Range': `bytes ${start}-${end}/${fileSize}`,
+            'Accept-Ranges': 'bytes',
+            'Content-Length': chunkSize,
+            'Content-Type': ext === '.mp4' ? 'video/mp4' : 'audio/mpeg',
+          });
+          fs.createReadStream(cacheFile, { start, end }).pipe(res);
+        } else {
+          res.writeHead(200, {
+            'Content-Length': fileSize,
+            'Content-Type': ext === '.mp4' ? 'video/mp4' : 'audio/mpeg',
+            'Accept-Ranges': 'bytes',
+          });
+          fs.createReadStream(cacheFile).pipe(res);
         }
-        // 转发 Range 头（支持进度拖拽）
-        if (req.headers.range) { headers['Range'] = req.headers.range; }
-
-        const response = await axios.get(url, {
-          responseType: 'stream',
-          headers,
-          timeout: 30000,
-          validateStatus: (status) => status < 400,
-        });
-
-        res.writeHead(response.status, {
-          'Content-Type': String(response.headers['content-type'] || 'audio/mpeg'),
-          'Content-Length': String(response.headers['content-length'] || ''),
-          'Accept-Ranges': 'bytes',
-          'Access-Control-Allow-Origin': '*',
-        });
-        response.data.pipe(res);
       } catch (e: any) {
+        // 下载失败，清理不完整文件
+        try { fs.unlinkSync(cacheFile); } catch { /* ignore */ }
         res.writeHead(500, { 'Content-Type': 'text/plain' });
         res.end('Error: ' + e.message);
       }
