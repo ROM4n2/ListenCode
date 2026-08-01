@@ -319,6 +319,7 @@ ListenCode/
 - 无背景播放
 - 无全局快捷键/系统托盘
 - Cookie 需手动导入（各平台数天~数周过期）
+- **未来改进：** WebView 内嵌登录页（见 `docs/plans/embedded-login.md`），自动捕获 cookie
 
 ## 9. 验证标准
 
