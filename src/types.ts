@@ -40,6 +40,8 @@ export type WebviewRequest =
 export type WebviewResponse =
   | { type: 'search:result'; tracks: Track[] }
   | { type: 'player:status'; playing: boolean; currentTrack: Track | null; currentTime: number; duration: number; volume: number }
+  | { type: 'player:resolve'; url: string | null; track: Track }
   | { type: 'playlist:list'; playlists: Playlist[] }
   | { type: 'cookie:status'; platform: string; valid: boolean }
+  | { type: 'playable:status'; status: Record<string, boolean> }
   | { type: 'error'; message: string };

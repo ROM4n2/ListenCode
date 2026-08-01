@@ -38,4 +38,21 @@ export async function resolvePlayUrl(trackId: string): Promise<string | null> {
   return PROVIDERS[platform].getPlayUrl(trackId);
 }
 
+export async function preCheckPlayable(tracks: Track[]): Promise<Map<string, boolean>> {
+  const results = await Promise.allSettled(
+    tracks.map(async (track) => {
+      const url = await resolvePlayUrl(track.id);
+      return [track.id, url !== null && url !== ''] as [string, boolean];
+    })
+  );
+  const map = new Map<string, boolean>();
+  for (const r of results) {
+    if (r.status === 'fulfilled') {
+      const [id, playable] = r.value;
+      map.set(id, playable);
+    }
+  }
+  return map;
+}
+
 export type { Provider };

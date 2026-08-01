@@ -2,12 +2,13 @@ import * as vscode from 'vscode';
 import { CookieManager } from './cookie';
 import { PlaylistManager } from './playlist';
 import { searchAll } from './search';
-import { resolvePlayUrl } from './provider';
+import { resolvePlayUrl, preCheckPlayable } from './provider';
 import { updateCookie } from './provider/http';
 import { WebviewRequest, Track, Playlist, Platform } from './types';
 
 let cookieManager: CookieManager;
 let playlistManager: PlaylistManager;
+const playableStatus = new Map<string, boolean>();
 
 export function activate(context: vscode.ExtensionContext) {
   cookieManager = new CookieManager(context);
@@ -78,13 +79,32 @@ async function handleWebviewMessage(webview: vscode.Webview, msg: WebviewRequest
       try {
         const tracks = await searchAll(msg.keyword, msg.sources as any[]);
         webview.postMessage({ type: 'search:result', tracks });
+        // 后台预检前 10 首，完成后发送 playable:status
+        const top10 = tracks.slice(0, 10);
+        preCheckPlayable(top10).then((result) => {
+          const status: Record<string, boolean> = {};
+          result.forEach((playable, id) => {
+            status[id] = playable;
+            playableStatus.set(id, playable);
+          });
+          webview.postMessage({ type: 'playable:status', status });
+        }).catch(() => {});
       } catch (e: any) {
         webview.postMessage({ type: 'error', message: e.message || '搜索失败' });
       }
       break;
     }
     case 'play': {
+      // 已知不可播则直接拦截
+      if (playableStatus.has(msg.track.id) && !playableStatus.get(msg.track.id)) {
+        webview.postMessage({ type: 'error', message: '该歌曲因版权原因无法播放' });
+        break;
+      }
       const url = await resolvePlayUrl(msg.track.id);
+      // 若获取不到地址，记录为不可播
+      if (!url) {
+        playableStatus.set(msg.track.id, false);
+      }
       webview.postMessage({ type: 'player:resolve', url, track: msg.track });
       break;
     }

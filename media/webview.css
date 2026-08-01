@@ -114,6 +114,18 @@ body {
 
 .track-item:hover { background: var(--hover); }
 
+.track-item.unplayable { opacity: 0.4; cursor: not-allowed; }
+
+.track-item.unplayable .track-title::after {
+  content: ' 🔒';
+  font-size: 10px;
+}
+
+.track-item.unplayable .track-actions button[data-action="play"] {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
 .track-item .track-info {
   flex: 1;
   min-width: 0;

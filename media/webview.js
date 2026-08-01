@@ -23,6 +23,7 @@
   let currentPlaylist = [];
   let currentIndex = -1;
   let playlists = [];
+  let playableStatus = {}; // trackId -> boolean (是否可播)
 
   // 搜索
   searchBtn.addEventListener('click', doSearch);
@@ -147,6 +148,10 @@
           showError('无法获取播放地址（可能需要导入 Cookie）');
         }
         break;
+      case 'playable:status':
+        Object.assign(playableStatus, msg.status);
+        updatePlayableUI();
+        break;
       case 'error':
         showError(msg.message);
         break;
@@ -158,19 +163,21 @@
       searchResults.innerHTML = '<div class="empty-state">无结果</div>';
       return;
     }
-    searchResults.innerHTML = tracks.map((t) => `
-      <div class="track-item" data-id="${t.id}">
+    searchResults.innerHTML = tracks.map((t) => {
+      const unplayable = playableStatus[t.id] === false;
+      return `
+      <div class="track-item${unplayable ? ' unplayable' : ''}" data-id="${t.id}">
         <div class="track-info">
           <div class="track-title">${escapeHtml(t.title)}</div>
           <div class="track-artist">${escapeHtml(t.artist)} - ${escapeHtml(t.album)}</div>
         </div>
         <span class="track-source">${t.source}</span>
         <div class="track-actions">
-          <button data-action="play" data-id="${t.id}">▶</button>
+          <button data-action="play" data-id="${t.id}"${unplayable ? ' disabled' : ''}>▶</button>
           <button data-action="add" data-id="${t.id}">+</button>
         </div>
       </div>
-    `).join('');
+    `}).join('');
 
     // 绑定事件
     searchResults.querySelectorAll('.track-item').forEach((el) => {
@@ -178,6 +185,11 @@
       const track = tracks.find((t) => t.id === id);
       el.querySelector('[data-action="play"]').addEventListener('click', (e) => {
         e.stopPropagation();
+        // 已知不可播则拦截
+        if (playableStatus[id] === false) {
+          showError('该歌曲因版权原因无法播放');
+          return;
+        }
         currentPlaylist = tracks;
         currentIndex = tracks.indexOf(track);
         playTrack(track);
@@ -186,6 +198,18 @@
         e.stopPropagation();
         addToPlaylist(track);
       });
+    });
+  }
+
+  // 根据当前 playableStatus 刷新 UI（不重新渲染列表）
+  function updatePlayableUI() {
+    searchResults.querySelectorAll('.track-item').forEach((el) => {
+      const id = el.dataset.id;
+      const playBtn = el.querySelector('[data-action="play"]');
+      if (playableStatus[id] === false) {
+        el.classList.add('unplayable');
+        if (playBtn) {playBtn.disabled = true;}
+      }
     });
   }
 
