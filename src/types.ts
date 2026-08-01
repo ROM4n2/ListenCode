@@ -42,6 +42,7 @@ export type WebviewRequest =
   | { type: 'login:paste'; platform: string }
   | { type: 'player:state'; playing: boolean; track: Track | null }
   | { type: 'search:loadHistory' }
+  | { type: 'history:remove'; index: number }
   | { type: 'mode:set'; mode: string }
   | { type: 'mode:get' }
   | { type: 'userplaylists:get'; platform: string }

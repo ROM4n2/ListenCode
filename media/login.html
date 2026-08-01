@@ -127,6 +127,11 @@
       }
     });
 
+    // 面板被外部关闭时清理轮询定时器，防止泄漏
+    window.addEventListener('unload', function () {
+      if (pollTimer) { clearInterval(pollTimer); pollTimer = null; }
+    });
+
     startLogin();
   </script>
 </body>

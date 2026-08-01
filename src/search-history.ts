@@ -13,3 +13,11 @@ export function addHistory(context: vscode.ExtensionContext, keyword: string): v
   history = history.slice(0, MAX_HISTORY);        // 限长
   context.globalState.update(HISTORY_KEY, history);
 }
+
+export function removeHistory(context: vscode.ExtensionContext, index: number): void {
+  const history = getHistory(context);
+  if (index >= 0 && index < history.length) {
+    history.splice(index, 1);
+    context.globalState.update(HISTORY_KEY, history);
+  }
+}

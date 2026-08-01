@@ -76,15 +76,31 @@
       historyDropdown.style.display = 'none';
       return;
     }
-    historyDropdown.innerHTML = history.map((kw) =>
-      `<div class="search-history-item">${escapeHtml(kw)}</div>`
+    historyDropdown.innerHTML = history.map((kw, i) =>
+      `<div class="search-history-item" data-index="${i}">
+        <span class="history-text">${escapeHtml(kw)}</span>
+        <button class="history-delete" data-index="${i}" title="删除">×</button>
+      </div>`
     ).join('');
     historyDropdown.style.display = 'block';
-    historyDropdown.querySelectorAll('.search-history-item').forEach((el) => {
+
+    // 点击历史项
+    historyDropdown.querySelectorAll('.history-text').forEach((el) => {
       el.addEventListener('click', () => {
         searchInput.value = el.textContent;
         historyDropdown.style.display = 'none';
         doSearch();
+      });
+    });
+
+    // 删除按钮
+    historyDropdown.querySelectorAll('.history-delete').forEach((btn) => {
+      btn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        const idx = parseInt(btn.dataset.index);
+        vscode.postMessage({ type: 'history:remove', index: idx });
+        // 刷新下拉
+        vscode.postMessage({ type: 'search:loadHistory' });
       });
     });
   }
@@ -304,8 +320,16 @@
     // 没有歌单则先创建，再添加
     if (playlists.length === 0) {
       vscode.postMessage({ type: 'playlist:createAndAdd', name: '默认歌单', track });
-    } else {
+    } else if (playlists.length === 1) {
       vscode.postMessage({ type: 'playlist:add', playlistId: playlists[0].id, track });
+    } else {
+      // 多歌单时显示选择
+      const names = playlists.map((p, i) => `${i + 1}. ${p.name} (${p.tracks.length}首)`).join('\n');
+      const input = prompt(`选择歌单编号:\n${names}`);
+      const idx = parseInt(input) - 1;
+      if (idx >= 0 && idx < playlists.length) {
+        vscode.postMessage({ type: 'playlist:add', playlistId: playlists[idx].id, track });
+      }
     }
   }
 

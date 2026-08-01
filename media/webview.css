@@ -93,10 +93,22 @@ body {
   z-index: 100;
 }
 .search-history-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
   padding: 6px 10px;
   cursor: pointer;
 }
 .search-history-item:hover { background: var(--hover); }
+.history-delete {
+  background: none;
+  border: none;
+  color: #666;
+  cursor: pointer;
+  font-size: 14px;
+  padding: 0 4px;
+}
+.history-delete:hover { color: #f44336; }
 
 /* Cookie 状态 */
 .cookie-status {

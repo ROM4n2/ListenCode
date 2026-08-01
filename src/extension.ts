@@ -6,7 +6,7 @@ import { searchAll } from './search';
 import { resolvePlayUrl, preCheckPlayable, getUserPlaylists, getPlaylistTracks, neteaseQR, bilibiliQR, generateQRDataUrl } from './provider';
 import { initCookieStore } from './provider/http';
 import { WebviewRequest, Track, Playlist, Platform } from './types';
-import { getHistory, addHistory } from './search-history';
+import { getHistory, addHistory, removeHistory } from './search-history';
 import { startAudioServer, getAudioUrl, stopAudioServer } from './audio-server';
 
 let cookieManager: CookieManager;
@@ -459,6 +459,11 @@ async function handleWebviewMessage(webview: vscode.Webview, msg: WebviewRequest
       break;
     }
     case 'search:loadHistory': {
+      webview.postMessage({ type: 'search:history', history: getHistory(extensionContext) });
+      break;
+    }
+    case 'history:remove': {
+      removeHistory(extensionContext, msg.index);
       webview.postMessage({ type: 'search:history', history: getHistory(extensionContext) });
       break;
     }
