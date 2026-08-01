@@ -329,27 +329,25 @@
         break;
       case 'player:resolve':
         if (msg.url) {
-          // 用 blob 加载，避免 B站等需要 Referer 头的平台播放失败
-          loadAudioBlob(msg.url).then(blobUrl => {
-            audioPlayer.src = blobUrl;
+          const playSrc = (src) => {
+            audioPlayer.src = src;
             audioPlayer.play().then(() => {
               playPauseBtn.textContent = '⏸';
               sendPlayerState(true);
             }).catch((err) => {
               showError('播放失败: ' + err.message);
             });
-          }).catch((err) => {
-            // blob 失败回退到直接 src
-            audioPlayer.src = msg.url;
-            audioPlayer.play().then(() => {
-              playPauseBtn.textContent = '⏸';
-              sendPlayerState(true);
-            }).catch((err2) => {
-              showError('播放失败: ' + err2.message);
-            });
-          });
+          };
+          // blob 加载（B站需要 Referer），失败回退直接 src
+          loadAudioBlob(msg.url).then(blobUrl => playSrc(blobUrl)).catch(() => playSrc(msg.url));
         } else {
-          showError('无法获取播放地址（可能需要导入 Cookie）');
+          // 付费/版权失败，自动跳过下一首
+          if (currentPlaylist.length > 1) {
+            showError('当前歌曲无法播放，跳过...');
+            setTimeout(() => playNext(), 1000);
+          } else {
+            showError('无法播放（可能是付费歌曲或版权限制）');
+          }
         }
         break;
       case 'autoplay':
