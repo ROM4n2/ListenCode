@@ -190,6 +190,57 @@ body {
   border-color: var(--accent);
 }
 
+/* 播放队列 */
+.queue-panel {
+  border-top: 1px solid var(--border);
+  max-height: 120px;
+  overflow-y: auto;
+}
+.queue-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 6px 12px;
+  font-size: 11px;
+  color: #888;
+}
+.queue-list {
+  padding: 0 8px 6px;
+}
+.queue-item {
+  display: flex;
+  align-items: center;
+  padding: 4px 8px;
+  border-radius: 3px;
+  cursor: pointer;
+  gap: 8px;
+}
+.queue-item:hover { background: var(--hover); }
+.queue-item.playing {
+  background: var(--hover);
+  border-left: 2px solid var(--accent);
+}
+.queue-item .queue-title {
+  flex: 1;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  font-size: 11px;
+}
+.queue-item .queue-artist {
+  font-size: 10px;
+  color: #888;
+}
+.queue-item .queue-remove {
+  background: none;
+  border: none;
+  color: #666;
+  cursor: pointer;
+  font-size: 12px;
+  padding: 0 4px;
+}
+.queue-item .queue-remove:hover { color: #f44336; }
+
 /* 歌单面板 */
 .playlist-panel {
   border-top: 1px solid var(--border);

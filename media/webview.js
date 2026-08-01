@@ -8,6 +8,9 @@
   const cookieStatus = document.getElementById('cookieStatus');
   const playlistList = document.getElementById('playlistList');
   const newPlaylistBtn = document.getElementById('newPlaylistBtn');
+  const queueList = document.getElementById('queueList');
+  const queueCount = document.getElementById('queueCount');
+  const clearQueueBtn = document.getElementById('clearQueueBtn');
   const playPauseBtn = document.getElementById('playPauseBtn');
   const prevBtn = document.getElementById('prevBtn');
   const nextBtn = document.getElementById('nextBtn');
@@ -157,6 +160,7 @@
       currentIndex = (currentIndex + 1) % currentPlaylist.length;
     }
     playTrack(currentPlaylist[currentIndex]);
+    renderQueue();
   }
 
   function playPrev() {
@@ -169,6 +173,7 @@
       currentIndex = (currentIndex - 1 + currentPlaylist.length) % currentPlaylist.length;
     }
     playTrack(currentPlaylist[currentIndex]);
+    renderQueue();
   }
 
   function playTrack(track) {
@@ -176,7 +181,70 @@
     currentTrackTitle.textContent = track.title;
     currentTrackArtist.textContent = track.artist;
     vscode.postMessage({ type: 'play', track });
+    renderQueue();
   }
+
+  function renderQueue() {
+    queueCount.textContent = currentPlaylist.length;
+    if (currentPlaylist.length === 0) {
+      queueList.innerHTML = '<div class="empty-state" style="padding:8px">队列为空</div>';
+      return;
+    }
+    queueList.innerHTML = currentPlaylist.map((t, i) => `
+      <div class="queue-item${i === currentIndex ? ' playing' : ''}" data-index="${i}">
+        <span class="queue-title">${escapeHtml(t.title)}</span>
+        <span class="queue-artist">${escapeHtml(t.artist)}</span>
+        <button class="queue-remove" data-index="${i}" title="移除">×</button>
+      </div>
+    `).join('');
+
+    queueList.querySelectorAll('.queue-item').forEach((el) => {
+      el.addEventListener('click', (e) => {
+        if (e.target.classList.contains('queue-remove')) {return;}
+        const idx = parseInt(el.dataset.index, 10);
+        currentIndex = idx;
+        playTrack(currentPlaylist[idx]);
+      });
+    });
+    queueList.querySelectorAll('.queue-remove').forEach((btn) => {
+      btn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        const idx = parseInt(btn.dataset.index, 10);
+        currentPlaylist.splice(idx, 1);
+        if (idx === currentIndex) {
+          if (currentPlaylist.length === 0) {
+            currentIndex = -1;
+            currentTrack = null;
+            audioPlayer.pause();
+            audioPlayer.src = '';
+            currentTrackTitle.textContent = '未播放';
+            currentTrackArtist.textContent = '';
+            playPauseBtn.textContent = '▶';
+          } else {
+            currentIndex = idx < currentPlaylist.length ? idx : 0;
+            playTrack(currentPlaylist[currentIndex]);
+            return;
+          }
+        } else if (idx < currentIndex) {
+          currentIndex--;
+        }
+        renderQueue();
+      });
+    });
+  }
+
+  clearQueueBtn.addEventListener('click', () => {
+    currentPlaylist = [];
+    currentIndex = -1;
+    currentTrack = null;
+    audioPlayer.pause();
+    audioPlayer.src = '';
+    currentTrackTitle.textContent = '未播放';
+    currentTrackArtist.textContent = '';
+    playPauseBtn.textContent = '▶';
+    renderQueue();
+    vscode.postMessage({ type: 'player:state', playing: false, track: null });
+  });
 
   function addToPlaylist(track) {
     if (playlists.length === 0) {
