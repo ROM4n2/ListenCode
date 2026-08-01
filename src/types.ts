@@ -47,7 +47,9 @@ export type WebviewRequest =
   | { type: 'mode:get' }
   | { type: 'userplaylists:get'; platform: string }
   | { type: 'open:login' }
-  | { type: 'playlist:syncLoad'; platform: string; playlistId: string };
+  | { type: 'playlist:syncLoad'; platform: string; playlistId: string }
+  | { type: 'login:start' }
+  | { type: 'login:poll'; unikey: string };
 
 // Extension Host → WebView
 export type WebviewResponse =
@@ -61,4 +63,6 @@ export type WebviewResponse =
   | { type: 'mode:current'; mode: string }
   | { type: 'userplaylists:list'; platform: string; playlists: Array<{id: string, title: string, cover?: string, count: number}> }
   | { type: 'playlist:tracks'; tracks: Track[] }
+  | { type: 'login:qrcode'; url: string }
+  | { type: 'login:status'; status: {code: number, message?: string} }
   | { type: 'error'; message: string };

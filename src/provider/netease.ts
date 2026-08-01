@@ -210,3 +210,29 @@ export async function getPlaylistTracks(playlistId: string): Promise<{ info: any
 
   return { info, tracks: allSongs.map(mapPlaylistSong) };
 }
+
+// 二维码登录：获取 unikey
+export async function getQRCodeKey(): Promise<string> {
+  const url = 'https://music.163.com/weapi/login/qrcode/unikey';
+  const data = weapi({ csrf_token: '' });
+  const res = await client.post(url, new URLSearchParams(data).toString(), {
+    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+  });
+  return res.data.unikey;
+}
+
+// 二维码登录：生成二维码图片 URL
+export function getQRCodeUrl(unikey: string): string {
+  return `https://music.163.com/login?codekey=${unikey}`;
+}
+
+// 二维码登录：轮询扫码状态
+export async function pollQRCodeStatus(unikey: string): Promise<{code: number, cookie?: string, message?: string}> {
+  const url = 'https://music.163.com/weapi/login/qrcode/client/login';
+  const data = weapi({ csrf_token: '', key: unikey, type: 1 });
+  const res = await client.post(url, new URLSearchParams(data).toString(), {
+    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+  });
+  // 801=等待扫码, 802=已扫码待确认, 803=登录成功(返回cookie), 800=过期
+  return { code: res.data.code, cookie: res.data.cookie, message: res.data.message };
+}

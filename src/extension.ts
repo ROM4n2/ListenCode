@@ -3,7 +3,7 @@ import * as fs from 'fs';
 import { CookieManager, parseCookieInput } from './cookie';
 import { PlaylistManager } from './playlist';
 import { searchAll } from './search';
-import { resolvePlayUrl, preCheckPlayable, getUserPlaylists, getPlaylistTracks } from './provider';
+import { resolvePlayUrl, preCheckPlayable, getUserPlaylists, getPlaylistTracks, getQRCodeKey, getQRCodeUrl, pollQRCodeStatus } from './provider';
 import { updateCookie } from './provider/http';
 import { WebviewRequest, Track, Playlist, Platform } from './types';
 import { getHistory, addHistory } from './search-history';
@@ -124,7 +124,7 @@ export function activate(context: vscode.ExtensionContext) {
   const loginCmd = vscode.commands.registerCommand('listencode.login', async () => {
     const platform = await vscode.window.showQuickPick(
       [
-        { label: '网易云音乐', value: 'netease' },
+        { label: '网易云音乐 (扫码登录)', value: 'netease' },
         { label: 'QQ音乐', value: 'qq' },
         { label: '酷狗音乐', value: 'kugou' },
         { label: 'B站', value: 'bilibili' },
@@ -141,6 +141,9 @@ export function activate(context: vscode.ExtensionContext) {
     );
 
     panel.webview.html = getLoginHtml(context.extensionUri, platform.value);
+
+    // 二维码登录 unikey 存储
+    let qrUnikey = '';
 
     panel.webview.onDidReceiveMessage(async (msg) => {
       if (msg.type === 'login:openUrl') {
@@ -169,6 +172,37 @@ export function activate(context: vscode.ExtensionContext) {
           } catch (e) {
             vscode.window.showErrorMessage(`导入失败: ${e}`);
           }
+        }
+      } else if (msg.type === 'login:start') {
+        // 获取二维码 key
+        try {
+          qrUnikey = await getQRCodeKey();
+          const qrUrl = getQRCodeUrl(qrUnikey);
+          panel.webview.postMessage({ type: 'login:qrcode', url: qrUrl });
+        } catch (e: any) {
+          panel.webview.postMessage({ type: 'login:status', status: { code: 0, message: '获取二维码失败: ' + (e.message || e) } });
+        }
+      } else if (msg.type === 'login:poll') {
+        // 轮询扫码状态
+        try {
+          const status = await pollQRCodeStatus(msg.unikey);
+          if (status.code === 803 && status.cookie) {
+            // 登录成功
+            cookieManager.importCookie('netease', status.cookie);
+            updateCookie('netease', status.cookie);
+            panel.dispose();
+            vscode.window.showInformationMessage('网易云登录成功');
+            if (activePanel) {
+              activePanel.webview.postMessage({
+                type: 'cookie:status',
+                status: cookieManager.getAllStatus(),
+              });
+            }
+          } else {
+            panel.webview.postMessage({ type: 'login:status', status });
+          }
+        } catch (e: any) {
+          panel.webview.postMessage({ type: 'login:status', status: { code: 0, message: '轮询失败: ' + (e.message || e) } });
         }
       }
     });

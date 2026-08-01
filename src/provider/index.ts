@@ -5,6 +5,10 @@ import * as kugou from './kugou';
 import * as bilibili from './bilibili';
 import { PlaylistSummary } from './netease';
 
+export const getQRCodeKey = netease.getQRCodeKey;
+export const getQRCodeUrl = netease.getQRCodeUrl;
+export const pollQRCodeStatus = netease.pollQRCodeStatus;
+
 interface Provider {
   search(keyword: string, limit?: number): Promise<Track[]>;
   getPlayUrl(trackId: string): Promise<string | null>;

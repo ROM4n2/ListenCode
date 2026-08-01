@@ -12,42 +12,100 @@
     .icon { font-size: 48px; margin-bottom: 20px; }
     h2 { margin: 0 0 10px; font-size: 16px; }
     p { color: var(--vscode-descriptionForeground); font-size: 13px; margin: 0 0 20px; max-width: 400px; }
-    .steps { text-align: left; font-size: 12px; color: var(--vscode-descriptionForeground); margin: 0 0 24px; line-height: 1.8; }
+    .qr-container {
+      background: #fff; padding: 12px; border-radius: 8px;
+      margin-bottom: 16px; box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+    }
+    .qr-container img { width: 200px; height: 200px; display: block; }
+    .status { font-size: 13px; color: var(--vscode-descriptionForeground); margin-bottom: 16px; min-height: 20px; }
+    .status.success { color: var(--vscode-testing-iconPassed); }
+    .status.error { color: var(--vscode-errorForeground); }
     .btn { background: var(--vscode-button-background); color: var(--vscode-button-foreground); border: none; padding: 8px 20px; border-radius: 4px; cursor: pointer; font-size: 13px; margin: 4px; }
     .btn:hover { opacity: 0.9; }
     .btn-secondary { background: transparent; border: 1px solid var(--vscode-button-background); color: var(--vscode-button-foreground); }
+    .fallback { margin-top: 24px; padding-top: 16px; border-top: 1px solid var(--vscode-panel-border); width: 100%; max-width: 360px; }
+    .fallback p { font-size: 12px; margin-bottom: 12px; }
   </style>
 </head>
 <body>
-  <div class="icon">🔐</div>
-  <h2>登录 <span id="platform-name">平台</span></h2>
-  <p>由于安全策略，无法在面板内嵌入登录页。请在浏览器中完成登录。</p>
-  <div class="steps">
-    1. 点击下方"打开登录页"按钮<br>
-    2. 在浏览器中完成登录<br>
-    3. F12 打开 Console，运行 <code>copy(document.cookie)</code><br>
-    4. 回到这里点击"粘贴 Cookie"
+  <div class="icon">🎵</div>
+  <h2>登录网易云音乐</h2>
+  <p>使用手机网易云 App 扫描二维码登录</p>
+  <div class="qr-container">
+    <img id="qrcode-img" src="" alt="二维码">
   </div>
+  <div id="status" class="status">正在获取二维码...</div>
   <div>
-    <button class="btn" id="openBtn">打开登录页</button>
-    <button class="btn btn-secondary" id="pasteBtn">粘贴 Cookie</button>
+    <button class="btn" id="refreshBtn">刷新二维码</button>
+  </div>
+  <div class="fallback">
+    <p>二维码登录遇到问题？</p>
+    <button class="btn btn-secondary" id="pasteBtn">手动粘贴 Cookie</button>
   </div>
   <script>
     var vscode = acquireVsCodeApi();
-    var platform = '{{PLATFORM}}';
-    var LOGIN_URLS = {
-      netease: 'https://music.163.com/login',
-      qq: 'https://y.qq.com',
-      kugou: 'https://www.kugou.com',
-      bilibili: 'https://passport.bilibili.com/login'
+    var currentUnikey = '';
+    var pollTimer = null;
+
+    var qrImg = document.getElementById('qrcode-img');
+    var statusEl = document.getElementById('status');
+    var refreshBtn = document.getElementById('refreshBtn');
+    var pasteBtn = document.getElementById('pasteBtn');
+
+    function startLogin() {
+      if (pollTimer) { clearInterval(pollTimer); pollTimer = null; }
+      statusEl.textContent = '正在获取二维码...';
+      statusEl.className = 'status';
+      vscode.postMessage({ type: 'login:start' });
+    }
+
+    function pollStatus() {
+      if (!currentUnikey) { return; }
+      vscode.postMessage({ type: 'login:poll', unikey: currentUnikey });
+    }
+
+    refreshBtn.onclick = function () {
+      startLogin();
     };
-    document.getElementById('platform-name').textContent = platform;
-    document.getElementById('openBtn').onclick = function () {
-      vscode.postMessage({ type: 'login:openUrl', url: LOGIN_URLS[platform], platform: platform });
+
+    pasteBtn.onclick = function () {
+      vscode.postMessage({ type: 'login:paste', platform: 'netease' });
     };
-    document.getElementById('pasteBtn').onclick = function () {
-      vscode.postMessage({ type: 'login:paste', platform: platform });
-    };
+
+    window.addEventListener('message', function (event) {
+      var msg = event.data;
+      if (msg.type === 'login:qrcode') {
+        currentUnikey = msg.url.split('codekey=')[1] || '';
+        qrImg.src = msg.url;
+        statusEl.textContent = '等待扫码...';
+        statusEl.className = 'status';
+        // 每 2 秒轮询一次
+        if (pollTimer) { clearInterval(pollTimer); }
+        pollTimer = setInterval(pollStatus, 2000);
+      } else if (msg.type === 'login:status') {
+        var code = msg.status.code;
+        if (code === 801) {
+          statusEl.textContent = '等待扫码...';
+        } else if (code === 802) {
+          statusEl.textContent = '已扫码，请在手机上确认';
+          statusEl.className = 'status success';
+        } else if (code === 803) {
+          statusEl.textContent = '登录成功！';
+          statusEl.className = 'status success';
+          if (pollTimer) { clearInterval(pollTimer); pollTimer = null; }
+        } else if (code === 800) {
+          statusEl.textContent = '二维码已过期，请刷新';
+          statusEl.className = 'status error';
+          if (pollTimer) { clearInterval(pollTimer); pollTimer = null; }
+        } else {
+          statusEl.textContent = (msg.status.message || '未知状态') + ' (' + code + ')';
+          statusEl.className = 'status error';
+        }
+      }
+    });
+
+    // 启动登录流程
+    startLogin();
   </script>
 </body>
 </html>

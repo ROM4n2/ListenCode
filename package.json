@@ -57,7 +57,27 @@
         "key": "ctrl+shift+m",
         "mac": "cmd+shift+m"
       }
-    ]
+    ],
+    "configuration": {
+      "title": "ListenCode",
+      "properties": {
+        "listencode.sources": {
+          "type": "object",
+          "default": {
+            "netease": { "enabled": true, "priority": 1 },
+            "qq": { "enabled": false, "priority": 2 },
+            "kugou": { "enabled": false, "priority": 3 },
+            "bilibili": { "enabled": false, "priority": 4 }
+          },
+          "description": "音源平台配置（enabled=启用, priority=优先级）"
+        },
+        "listencode.autoLogin": {
+          "type": "boolean",
+          "default": true,
+          "description": "是否启用二维码自动登录"
+        }
+      }
+    }
   },
   "scripts": {
     "compile": "tsc -p ./",
