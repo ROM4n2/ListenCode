@@ -32,6 +32,7 @@ body {
   gap: 8px;
   padding: 12px;
   border-bottom: 1px solid var(--border);
+  position: relative;
 }
 
 #searchInput {
@@ -64,6 +65,25 @@ body {
 }
 
 #searchBtn:hover { opacity: 0.9; }
+
+.search-history-dropdown {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  right: 0;
+  background: var(--input-bg);
+  border: 1px solid var(--border);
+  border-top: none;
+  border-radius: 0 0 4px 4px;
+  max-height: 200px;
+  overflow-y: auto;
+  z-index: 100;
+}
+.search-history-item {
+  padding: 6px 10px;
+  cursor: pointer;
+}
+.search-history-item:hover { background: var(--hover); }
 
 /* Cookie 状态 */
 .cookie-status {

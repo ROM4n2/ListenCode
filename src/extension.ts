@@ -5,10 +5,12 @@ import { searchAll } from './search';
 import { resolvePlayUrl, preCheckPlayable } from './provider';
 import { updateCookie } from './provider/http';
 import { WebviewRequest, Track, Playlist, Platform } from './types';
+import { getHistory, addHistory } from './search-history';
 
 let cookieManager: CookieManager;
 let playlistManager: PlaylistManager;
 const playableStatus = new Map<string, boolean>();
+let extensionContext: vscode.ExtensionContext;
 
 // 播放状态跟踪
 let currentPlayingTrack: Track | null = null;
@@ -17,6 +19,7 @@ let activePanel: vscode.WebviewPanel | null = null;
 let statusBarItem: vscode.StatusBarItem;
 
 export function activate(context: vscode.ExtensionContext) {
+  extensionContext = context;
   cookieManager = new CookieManager(context);
   playlistManager = new PlaylistManager(context);
 
@@ -136,6 +139,12 @@ function createPlayerPanel(context: vscode.ExtensionContext): vscode.WebviewPane
     status: cookieManager.getAllStatus(),
   });
 
+  // 发送搜索历史
+  panel.webview.postMessage({
+    type: 'search:history',
+    history: getHistory(extensionContext),
+  });
+
   panel.onDidDispose(() => {
     activePanel = null;
     currentPlayingTrack = null;
@@ -163,8 +172,10 @@ async function handleWebviewMessage(webview: vscode.Webview, msg: WebviewRequest
   switch (msg.type) {
     case 'search': {
       try {
+        addHistory(extensionContext, msg.keyword);
         const tracks = await searchAll(msg.keyword, msg.sources as any[]);
         webview.postMessage({ type: 'search:result', tracks });
+        webview.postMessage({ type: 'search:history', history: getHistory(extensionContext) });
         // 后台预检前 10 首，完成后发送 playable:status
         const top10 = tracks.slice(0, 10);
         preCheckPlayable(top10).then((result) => {
@@ -231,6 +242,10 @@ async function handleWebviewMessage(webview: vscode.Webview, msg: WebviewRequest
       currentPlayingTrack = msg.track;
       isPlaying = msg.playing;
       updateStatusBar(msg.track, msg.playing);
+      break;
+    }
+    case 'search:loadHistory': {
+      webview.postMessage({ type: 'search:history', history: getHistory(extensionContext) });
       break;
     }
   }

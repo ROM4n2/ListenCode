@@ -35,7 +35,8 @@ export type WebviewRequest =
   | { type: 'playlist:remove'; playlistId: string; trackId?: string }
   | { type: 'playlist:load' }
   | { type: 'cookie:import'; platform: string; raw: string }
-  | { type: 'player:state'; playing: boolean; track: Track | null };
+  | { type: 'player:state'; playing: boolean; track: Track | null }
+  | { type: 'search:loadHistory' };
 
 // Extension Host → WebView
 export type WebviewResponse =
@@ -45,4 +46,5 @@ export type WebviewResponse =
   | { type: 'playlist:list'; playlists: Playlist[] }
   | { type: 'cookie:status'; platform: string; valid: boolean }
   | { type: 'playable:status'; status: Record<string, boolean> }
+  | { type: 'search:history'; history: string[] }
   | { type: 'error'; message: string };

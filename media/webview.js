@@ -30,10 +30,44 @@
   searchInput.addEventListener('keydown', (e) => {
     if (e.key === 'Enter') {doSearch();}
   });
+  searchInput.addEventListener('focus', () => {
+    vscode.postMessage({ type: 'search:loadHistory' });
+  });
+
+  // 搜索历史下拉
+  const historyDropdown = document.createElement('div');
+  historyDropdown.className = 'search-history-dropdown';
+  historyDropdown.style.display = 'none';
+  document.querySelector('.search-bar').appendChild(historyDropdown);
+
+  function showHistoryDropdown(history) {
+    if (!history || history.length === 0) {
+      historyDropdown.style.display = 'none';
+      return;
+    }
+    historyDropdown.innerHTML = history.map((kw) =>
+      `<div class="search-history-item">${escapeHtml(kw)}</div>`
+    ).join('');
+    historyDropdown.style.display = 'block';
+    historyDropdown.querySelectorAll('.search-history-item').forEach((el) => {
+      el.addEventListener('click', () => {
+        searchInput.value = el.textContent;
+        historyDropdown.style.display = 'none';
+        doSearch();
+      });
+    });
+  }
+
+  document.addEventListener('click', (e) => {
+    if (!document.querySelector('.search-bar').contains(e.target)) {
+      historyDropdown.style.display = 'none';
+    }
+  });
 
   function doSearch() {
     const keyword = searchInput.value.trim();
     if (!keyword) {return;}
+    historyDropdown.style.display = 'none';
     const platform = platformSelect.value;
     const sources = platform === 'all'
       ? ['netease', 'qq', 'kugou', 'bilibili']
@@ -171,6 +205,9 @@
       case 'playable:status':
         Object.assign(playableStatus, msg.status);
         updatePlayableUI();
+        break;
+      case 'search:history':
+        showHistoryDropdown(msg.history);
         break;
       case 'error':
         showError(msg.message);
