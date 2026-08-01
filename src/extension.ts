@@ -10,6 +10,7 @@ import { resolvePlayUrl, preCheckPlayable, getUserPlaylists, getPlaylistTracks }
 import { updateCookie, getCookie } from './provider/http';
 import { WebviewRequest, Track, Playlist, Platform } from './types';
 import { getHistory, addHistory } from './search-history';
+import { startLocalServer } from './server';
 
 let cookieManager: CookieManager;
 let playlistManager: PlaylistManager;
@@ -301,10 +302,13 @@ async function handleWebviewMessage(webview: vscode.Webview, msg: WebviewRequest
         webview.postMessage({ type: 'player:resolve', url: null, cookie: '', track: msg.track });
         break;
       }
-      // 下载到本地临时文件，避免 CDN 跨域/IP 绑定问题
+      // 下载到本地 → 通过本地 HTTP 服务器提供，避免 CDN 跨域/IP 绑定
       try {
-        const localUrl = await downloadAudio(url, cookie, msg.track.id);
-        webview.postMessage({ type: 'player:resolve', url: localUrl, cookie, track: msg.track });
+        const localPath = await downloadAudio(url, cookie, msg.track.id);
+        const serverUrl = await startLocalServer();
+        const fileName = `${msg.track.id}${path.extname(url).split('?')[0] || '.mp4'}`;
+        const webUrl = `${serverUrl}/${encodeURIComponent(fileName)}`;
+        webview.postMessage({ type: 'player:resolve', url: webUrl, cookie, track: msg.track });
       } catch (e) {
         // 下载失败，回退到原始 URL
         webview.postMessage({ type: 'player:resolve', url, cookie, track: msg.track });
@@ -406,7 +410,7 @@ async function downloadAudio(url: string, cookie: string, trackId: string): Prom
   if (!fs.existsSync(tmpDir)) {
     fs.mkdirSync(tmpDir, { recursive: true });
   }
-  const ext = url.match(/\.(\w+)(\?|$)/)?.[1] || 'mp4';
+  const ext = (url.match(/\.(\w+)(\?|$)/)?.[1] || 'mp4').toLowerCase();
   const localPath = path.join(tmpDir, `${trackId}.${ext}`);
 
   // 已下载则直接返回
@@ -423,7 +427,9 @@ async function downloadAudio(url: string, cookie: string, trackId: string): Prom
   const response = await axios.get(url, {
     responseType: 'stream',
     headers,
-    timeout: 30000,
+    timeout: 60000,
+    // 网易云 MP3 大约 3-15MB，B站视频可能更大
+    maxContentLength: 100 * 1024 * 1024,
   });
 
   const writer = fs.createWriteStream(localPath);

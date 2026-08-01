@@ -1,6 +1,7 @@
 /references/listen1_chrome_extension-master
 /references/music-player-master
 /references/listen1_desktop-master
+/references/vsc-netease-music-master
 /node_modules
 /out
 *.vsix
