@@ -384,6 +384,16 @@ input[type="range"]::-webkit-slider-thumb {
   cursor: pointer;
 }
 
+/* 视频播放器（实际只播放音频） */
+#audioPlayer {
+  position: absolute;
+  width: 0;
+  height: 0;
+  overflow: hidden;
+  opacity: 0;
+  pointer-events: none;
+}
+
 /* 错误提示 toast */
 .error-toast {
   position: fixed;
