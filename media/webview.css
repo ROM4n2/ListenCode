@@ -240,6 +240,8 @@ body {
   padding: 0 4px;
 }
 .queue-item .queue-remove:hover { color: #f44336; }
+.queue-item.dragging { opacity: 0.5; }
+.queue-item.drag-over { border-top: 2px solid var(--accent); }
 
 /* 歌单面板 */
 .playlist-panel {
@@ -267,6 +269,8 @@ body {
 }
 
 .btn-small:hover { background: var(--accent); border-color: var(--accent); }
+
+.playlist-header-actions { display: flex; gap: 4px; }
 
 .playlist-list {
   padding: 0 12px 8px;

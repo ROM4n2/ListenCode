@@ -8,6 +8,8 @@
   const cookieStatus = document.getElementById('cookieStatus');
   const playlistList = document.getElementById('playlistList');
   const newPlaylistBtn = document.getElementById('newPlaylistBtn');
+  const exportPlaylistsBtn = document.getElementById('exportPlaylistsBtn');
+  const importPlaylistsBtn = document.getElementById('importPlaylistsBtn');
   const queueList = document.getElementById('queueList');
   const queueCount = document.getElementById('queueCount');
   const clearQueueBtn = document.getElementById('clearQueueBtn');
@@ -200,11 +202,42 @@
     `).join('');
 
     queueList.querySelectorAll('.queue-item').forEach((el) => {
+      const index = parseInt(el.dataset.index, 10);
+
+      // 拖拽排序
+      el.setAttribute('draggable', 'true');
+      el.addEventListener('dragstart', (e) => {
+        e.dataTransfer.setData('text/plain', index);
+        el.classList.add('dragging');
+      });
+      el.addEventListener('dragover', (e) => {
+        e.preventDefault();
+        el.classList.add('drag-over');
+      });
+      el.addEventListener('dragleave', () => el.classList.remove('drag-over'));
+      el.addEventListener('drop', (e) => {
+        e.preventDefault();
+        el.classList.remove('drag-over');
+        const from = parseInt(e.dataTransfer.getData('text/plain'), 10);
+        const to = index;
+        if (from !== to) {
+          const [removed] = currentPlaylist.splice(from, 1);
+          currentPlaylist.splice(to, 0, removed);
+          if (currentIndex === from) {currentIndex = to;}
+          else if (from < to && currentIndex > from && currentIndex <= to) {currentIndex--;}
+          else if (from > to && currentIndex >= to && currentIndex < from) {currentIndex++;}
+          renderQueue();
+        }
+      });
+      el.addEventListener('dragend', () => {
+        el.classList.remove('dragging');
+        document.querySelectorAll('.drag-over').forEach((d) => d.classList.remove('drag-over'));
+      });
+
       el.addEventListener('click', (e) => {
         if (e.target.classList.contains('queue-remove')) {return;}
-        const idx = parseInt(el.dataset.index, 10);
-        currentIndex = idx;
-        playTrack(currentPlaylist[idx]);
+        currentIndex = index;
+        playTrack(currentPlaylist[index]);
       });
     });
     queueList.querySelectorAll('.queue-remove').forEach((btn) => {
@@ -262,6 +295,14 @@
     if (name) {
       vscode.postMessage({ type: 'playlist:create', name });
     }
+  });
+
+  // 导入导出歌单
+  exportPlaylistsBtn.addEventListener('click', () => {
+    vscode.postMessage({ type: 'playlists:export' });
+  });
+  importPlaylistsBtn.addEventListener('click', () => {
+    vscode.postMessage({ type: 'playlists:import' });
   });
 
   // 接收消息

@@ -2,7 +2,7 @@ import * as vscode from 'vscode';
 import { CookieManager, parseCookieInput } from './cookie';
 import { PlaylistManager } from './playlist';
 import { searchAll } from './search';
-import { resolvePlayUrl, preCheckPlayable } from './provider';
+import { resolvePlayUrl, preCheckPlayable, getUserPlaylists, getPlaylistTracks } from './provider';
 import { updateCookie } from './provider/http';
 import { WebviewRequest, Track, Playlist, Platform } from './types';
 import { getHistory, addHistory } from './search-history';
@@ -79,6 +79,45 @@ export function activate(context: vscode.ExtensionContext) {
     }
   });
 
+  // 注册导出歌单命令
+  const exportPlaylistsCmd = vscode.commands.registerCommand('listencode.exportPlaylists', async () => {
+    const uri = await vscode.window.showSaveDialog({
+      defaultUri: vscode.Uri.file('listencode-playlists.json'),
+      filters: { 'JSON': ['json'] }
+    });
+    if (!uri) {return;}
+    const data = {
+      version: 1,
+      exportedAt: new Date().toISOString(),
+      playlists: playlistManager.getAll()
+    };
+    await vscode.workspace.fs.writeFile(uri, Buffer.from(JSON.stringify(data, null, 2), 'utf-8'));
+    vscode.window.showInformationMessage('歌单已导出');
+  });
+
+  // 注册导入歌单命令
+  const importPlaylistsCmd = vscode.commands.registerCommand('listencode.importPlaylists', async () => {
+    const uri = await vscode.window.showOpenDialog({
+      canSelectFiles: true, canSelectFolders: false, canSelectMany: false,
+      filters: { 'JSON': ['json'] }
+    });
+    if (!uri || uri.length === 0) {return;}
+    const content = await vscode.workspace.fs.readFile(uri[0]);
+    const data = JSON.parse(content.toString());
+    if (data.playlists && Array.isArray(data.playlists)) {
+      for (const pl of data.playlists) {
+        const playlist = playlistManager.create(pl.name);
+        for (const track of pl.tracks || []) {
+          playlistManager.addTrack(playlist.id, track);
+        }
+      }
+      vscode.window.showInformationMessage(`已导入 ${data.playlists.length} 个歌单`);
+      if (activePanel) {
+        activePanel.webview.postMessage({ type: 'playlist:list', playlists: playlistManager.getAll() });
+      }
+    }
+  });
+
   // 注册导入 cookie 命令
   const importCookieCmd = vscode.commands.registerCommand('listencode.importCookie', async () => {
     const platform = await vscode.window.showQuickPick(
@@ -108,7 +147,7 @@ export function activate(context: vscode.ExtensionContext) {
     }
   });
 
-  context.subscriptions.push(openPlayerCmd, quickPlayCmd, togglePlayCmd, importCookieCmd);
+  context.subscriptions.push(openPlayerCmd, quickPlayCmd, togglePlayCmd, importCookieCmd, exportPlaylistsCmd, importPlaylistsCmd);
 }
 
 function createPlayerPanel(context: vscode.ExtensionContext): vscode.WebviewPanel {
@@ -225,8 +264,20 @@ async function handleWebviewMessage(webview: vscode.Webview, msg: WebviewRequest
       webview.postMessage({ type: 'playlist:list', playlists: playlistManager.getAll() });
       break;
     }
+    case 'playlist:reorder': {
+      playlistManager.reorderTrack(msg.playlistId, msg.fromIndex, msg.toIndex);
+      break;
+    }
     case 'playlist:load': {
       webview.postMessage({ type: 'playlist:list', playlists: playlistManager.getAll() });
+      break;
+    }
+    case 'playlists:export': {
+      vscode.commands.executeCommand('listencode.exportPlaylists');
+      break;
+    }
+    case 'playlists:import': {
+      vscode.commands.executeCommand('listencode.importPlaylists');
       break;
     }
     case 'cookie:import': {
@@ -257,6 +308,24 @@ async function handleWebviewMessage(webview: vscode.Webview, msg: WebviewRequest
     case 'mode:get': {
       const mode = extensionContext.globalState.get<string>('listencode.playMode', 'list');
       webview.postMessage({ type: 'mode:current', mode });
+      break;
+    }
+    case 'userplaylists:get': {
+      try {
+        const playlists = await getUserPlaylists(msg.platform as Platform);
+        webview.postMessage({ type: 'userplaylists:list', platform: msg.platform, playlists });
+      } catch (e: any) {
+        webview.postMessage({ type: 'error', message: e.message || '获取歌单失败' });
+      }
+      break;
+    }
+    case 'playlist:syncLoad': {
+      try {
+        const tracks = await getPlaylistTracks(msg.platform as Platform, msg.playlistId);
+        webview.postMessage({ type: 'playlist:tracks', tracks });
+      } catch (e: any) {
+        webview.postMessage({ type: 'error', message: e.message || '加载歌单歌曲失败' });
+      }
       break;
     }
   }

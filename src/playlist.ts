@@ -54,6 +54,17 @@ export class PlaylistManager {
     return true;
   }
 
+  reorderTrack(playlistId: string, fromIndex: number, toIndex: number): boolean {
+    const playlist = this.playlists.find(p => p.id === playlistId);
+    if (!playlist) {return false;}
+    if (fromIndex < 0 || fromIndex >= playlist.tracks.length) {return false;}
+    if (toIndex < 0 || toIndex >= playlist.tracks.length) {return false;}
+    const [removed] = playlist.tracks.splice(fromIndex, 1);
+    playlist.tracks.splice(toIndex, 0, removed);
+    this.save();
+    return true;
+  }
+
   getAll(): Playlist[] {
     return this.playlists;
   }

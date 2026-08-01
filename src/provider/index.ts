@@ -3,6 +3,7 @@ import * as netease from './netease';
 import * as qq from './qq';
 import * as kugou from './kugou';
 import * as bilibili from './bilibili';
+import { PlaylistSummary } from './netease';
 
 interface Provider {
   search(keyword: string, limit?: number): Promise<Track[]>;
@@ -18,6 +19,42 @@ const PROVIDERS: Record<Platform, Provider> = {
 
 export function getProvider(platform: Platform): Provider {
   return PROVIDERS[platform];
+}
+
+export async function getUserPlaylists(platform: Platform): Promise<PlaylistSummary[]> {
+  switch (platform) {
+    case 'netease':
+      return netease.getUserPlaylists();
+    case 'qq':
+      return qq.getUserPlaylists();
+    case 'kugou':
+      return kugou.getUserPlaylists();
+    case 'bilibili':
+      return bilibili.getUserPlaylists();
+    default:
+      return [];
+  }
+}
+
+export async function getPlaylistTracks(platform: Platform, playlistId: string): Promise<Track[]> {
+  let result: { info: any; tracks: Track[] };
+  switch (platform) {
+    case 'netease':
+      result = await netease.getPlaylistTracks(playlistId);
+      break;
+    case 'qq':
+      result = await qq.getPlaylistTracks(playlistId);
+      break;
+    case 'kugou':
+      result = await kugou.getPlaylistTracks(playlistId);
+      break;
+    case 'bilibili':
+      result = await bilibili.getPlaylistTracks(playlistId);
+      break;
+    default:
+      result = { info: {}, tracks: [] };
+  }
+  return result.tracks;
 }
 
 export function getProviderByTrackId(trackId: string): Platform | null {

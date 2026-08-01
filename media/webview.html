@@ -42,7 +42,11 @@
     <div class="playlist-panel">
       <div class="playlist-header">
         <span>我的歌单</span>
-        <button id="newPlaylistBtn" class="btn-small">+ 新建</button>
+        <div class="playlist-header-actions">
+          <button id="exportPlaylistsBtn" class="btn-small" title="导出歌单为 JSON">导出</button>
+          <button id="importPlaylistsBtn" class="btn-small" title="从 JSON 导入歌单">导入</button>
+          <button id="newPlaylistBtn" class="btn-small">+ 新建</button>
+        </div>
       </div>
       <div class="playlist-list" id="playlistList"></div>
     </div>

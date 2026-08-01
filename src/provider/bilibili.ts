@@ -1,5 +1,6 @@
 import { Track } from '../types';
-import { createHttpClient, UA } from './http';
+import { createHttpClient, UA, getCookie } from './http';
+import { PlaylistSummary } from './netease';
 
 const client = createHttpClient('bilibili');
 
@@ -82,4 +83,76 @@ export async function getPlayUrl(trackId: string): Promise<string | null> {
   if (!audioList || audioList.length === 0) {return null;}
 
   return audioList[0].baseUrl ?? audioList[0].url?.[0] ?? null;
+}
+
+interface BiliFavFolderResponse {
+  code: number;
+  data: {
+    list: Array<{
+      id: number;
+      title: string;
+      cover: string;
+      media_count: number;
+    }>;
+  };
+}
+
+interface BiliFavResourceResponse {
+  code: number;
+  data: {
+    medias: Array<{
+      id: number;
+      title: string;
+      cover: string;
+      upper: { mid: number; name: string };
+      bvid: string;
+    }> | null;
+  };
+}
+
+function parseMidFromCookie(): string | null {
+  const cookie = getCookie('bilibili');
+  const match = cookie.match(/(?:^|;\s*)DedeUserID=(\d+)/);
+  return match ? match[1] : null;
+}
+
+export async function getUserPlaylists(): Promise<PlaylistSummary[]> {
+  const mid = parseMidFromCookie();
+  if (!mid) {return [];}
+
+  const url = 'https://api.bilibili.com/x/v3/fav/folder/created/list-all';
+  const resp = await client.get<BiliFavFolderResponse>(url, { params: { up_mid: mid } });
+
+  const list = resp.data.data?.list ?? [];
+  return list.map((item) => ({
+    id: `bifav_${item.id}`,
+    title: item.title,
+    cover: item.cover,
+    count: item.media_count,
+  }));
+}
+
+export async function getPlaylistTracks(playlistId: string): Promise<{ info: any; tracks: Track[] }> {
+  const mediaId = playlistId.replace('bifav_', '');
+  const url = 'https://api.bilibili.com/x/v3/fav/resource/list';
+  const resp = await client.get<BiliFavResourceResponse>(url, {
+    params: { media_id: mediaId, pn: 1, ps: 100 },
+  });
+
+  const medias = resp.data.data?.medias ?? [];
+  const tracks = medias
+    .filter((m) => m.bvid)
+    .map((m) => ({
+      id: `bibvid_${m.bvid}`,
+      title: stripHtmlTags(m.title),
+      artist: m.upper?.name ?? '未知up主',
+      album: '',
+      source: 'bilibili' as const,
+      albumCover: m.cover?.startsWith('//') ? `https:${m.cover}` : m.cover,
+    }));
+
+  return {
+    info: { id: `bifav_${mediaId}`, title: '' },
+    tracks,
+  };
 }

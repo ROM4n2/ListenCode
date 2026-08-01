@@ -28,6 +28,10 @@ export function updateCookie(platform: Platform, cookie: string): void {
   cookieStore[platform] = cookie;
 }
 
+export function getCookie(platform: Platform): string {
+  return cookieStore[platform] || '';
+}
+
 function getCookieHeader(platform: Platform): string {
   return cookieStore[platform] || '';
 }

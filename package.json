@@ -34,6 +34,16 @@
         "command": "listencode.importCookie",
         "title": "Import Cookie",
         "category": "ListenCode"
+      },
+      {
+        "command": "listencode.exportPlaylists",
+        "title": "Export Playlists",
+        "category": "ListenCode"
+      },
+      {
+        "command": "listencode.importPlaylists",
+        "title": "Import Playlists",
+        "category": "ListenCode"
       }
     ],
     "keybindings": [

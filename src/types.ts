@@ -33,12 +33,17 @@ export type WebviewRequest =
   | { type: 'playlist:create'; name: string }
   | { type: 'playlist:add'; playlistId: string; track: Track }
   | { type: 'playlist:remove'; playlistId: string; trackId?: string }
+  | { type: 'playlist:reorder'; playlistId: string; fromIndex: number; toIndex: number }
   | { type: 'playlist:load' }
+  | { type: 'playlists:export' }
+  | { type: 'playlists:import' }
   | { type: 'cookie:import'; platform: string; raw: string }
   | { type: 'player:state'; playing: boolean; track: Track | null }
   | { type: 'search:loadHistory' }
   | { type: 'mode:set'; mode: string }
-  | { type: 'mode:get' };
+  | { type: 'mode:get' }
+  | { type: 'userplaylists:get'; platform: string }
+  | { type: 'playlist:syncLoad'; platform: string; playlistId: string };
 
 // Extension Host → WebView
 export type WebviewResponse =
@@ -50,4 +55,6 @@ export type WebviewResponse =
   | { type: 'playable:status'; status: Record<string, boolean> }
   | { type: 'search:history'; history: string[] }
   | { type: 'mode:current'; mode: string }
+  | { type: 'userplaylists:list'; platform: string; playlists: Array<{id: string, title: string, cover?: string, count: number}> }
+  | { type: 'playlist:tracks'; tracks: Track[] }
   | { type: 'error'; message: string };
