@@ -7,7 +7,7 @@ import { resolvePlayUrl, preCheckPlayable, getUserPlaylists, getPlaylistTracks, 
 import { initCookieStore } from './provider/http';
 import { WebviewRequest, Track, Playlist, Platform } from './types';
 import { getHistory, addHistory } from './search-history';
-import { startAudioServer, getAudioUrl } from './audio-server';
+import { startAudioServer, getAudioUrl, stopAudioServer } from './audio-server';
 
 let cookieManager: CookieManager;
 let playlistManager: PlaylistManager;
@@ -19,6 +19,23 @@ let currentPlayingTrack: Track | null = null;
 let isPlaying = false;
 let activePanel: vscode.WebviewPanel | null = null;
 let statusBarItem: vscode.StatusBarItem;
+
+// URL 缓存：避免 preCheckPlayable 和实际播放时重复调用 resolvePlayUrl
+const urlCache = new Map<string, { url: string; cookie: string; time: number }>();
+const URL_CACHE_TTL = 5 * 60 * 1000; // 5 分钟
+
+function getCachedUrl(trackId: string): { url: string; cookie: string } | null {
+  const cached = urlCache.get(trackId);
+  if (cached && Date.now() - cached.time < URL_CACHE_TTL) {
+    return { url: cached.url, cookie: cached.cookie };
+  }
+  urlCache.delete(trackId);
+  return null;
+}
+
+function setCachedUrl(trackId: string, url: string, cookie: string): void {
+  urlCache.set(trackId, { url, cookie, time: Date.now() });
+}
 
 export function activate(context: vscode.ExtensionContext) {
   extensionContext = context;
@@ -33,11 +50,7 @@ export function activate(context: vscode.ExtensionContext) {
 
   // 注册打开播放器命令
   const openPlayerCmd = vscode.commands.registerCommand('listencode.openPlayer', async () => {
-    const panel = await createPlayerPanel(context);
-
-    panel.webview.onDidReceiveMessage(async (msg: WebviewRequest) => {
-      handleWebviewMessage(panel.webview, msg);
-    });
+    await createPlayerPanel(context);
   });
 
   // 注册快速播放命令
@@ -66,9 +79,6 @@ export function activate(context: vscode.ExtensionContext) {
 
     // 打开面板并通知自动播放
     const panel = await createPlayerPanel(context);
-    panel.webview.onDidReceiveMessage(async (msg: WebviewRequest) => {
-      handleWebviewMessage(panel.webview, msg);
-    });
     // 延迟发送，确保 WebView 已就绪
     setTimeout(() => {
       panel.webview.postMessage({ type: 'autoplay', track: firstPlayable });
@@ -302,10 +312,16 @@ async function createPlayerPanel(context: vscode.ExtensionContext): Promise<vsco
     history: getHistory(extensionContext),
   });
 
+  // 注册消息监听器（仅一次，避免命令重复调用时叠加）
+  panel.webview.onDidReceiveMessage(async (msg: WebviewRequest) => {
+    handleWebviewMessage(panel.webview, msg);
+  });
+
   panel.onDidDispose(() => {
     activePanel = null;
     currentPlayingTrack = null;
     isPlaying = false;
+    playableStatus.clear();
     statusBarItem.hide();
   });
 
@@ -342,6 +358,14 @@ async function handleWebviewMessage(webview: vscode.Webview, msg: WebviewRequest
             playableStatus.set(id, playable);
           });
           webview.postMessage({ type: 'playable:status', status });
+          // 缓存可播放歌曲的 URL，避免实际播放时重复解析
+          for (const [id, playable] of result) {
+            if (playable) {
+              resolvePlayUrl(id).then(({ url, cookie }) => {
+                if (url) { setCachedUrl(id, url, cookie); }
+              }).catch(() => {});
+            }
+          }
         }).catch(() => {});
       } catch (e: any) {
         webview.postMessage({ type: 'error', message: e.message || '搜索失败' });
@@ -354,11 +378,17 @@ async function handleWebviewMessage(webview: vscode.Webview, msg: WebviewRequest
         webview.postMessage({ type: 'error', message: '该歌曲因版权原因无法播放' });
         break;
       }
-      const { url, cookie } = await resolvePlayUrl(msg.track.id);
+      // 优先读缓存，避免重复解析播放地址
+      const cached = getCachedUrl(msg.track.id);
+      const { url, cookie } = cached ? { url: cached.url, cookie: cached.cookie } : await resolvePlayUrl(msg.track.id);
       if (!url) {
         playableStatus.set(msg.track.id, false);
         webview.postMessage({ type: 'player:resolve', url: null, cookie: '', track: msg.track });
         break;
+      }
+      // 缓存未命中时写入缓存
+      if (!cached) {
+        setCachedUrl(msg.track.id, url, cookie);
       }
       // 通过本地音频代理服务器流式传输（WebView 通过 portMapping 访问）
       try {
@@ -489,4 +519,6 @@ function getWebviewHtml(webview: vscode.Webview, extensionUri: vscode.Uri): stri
     );
 }
 
-export function deactivate() {}
+export function deactivate() {
+  stopAudioServer();
+}

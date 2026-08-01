@@ -112,6 +112,19 @@ export function startAudioServer(): Promise<number> {
           const parts = range.replace(/bytes=/, '').split('-');
           const start = parseInt(parts[0], 10);
           const end = parts[1] ? parseInt(parts[1], 10) : fileSize - 1;
+
+          // 校验数值合法性
+          if (isNaN(start) || isNaN(end) || start > end || end >= fileSize || start < 0) {
+            // 非法 Range，返回完整文件
+            res.writeHead(200, {
+              'Content-Length': fileSize,
+              'Content-Type': ext === '.mp4' ? 'video/mp4' : 'audio/mpeg',
+              'Accept-Ranges': 'bytes',
+            });
+            fs.createReadStream(cacheFile).pipe(res);
+            return;
+          }
+
           const chunkSize = end - start + 1;
 
           res.writeHead(206, {
@@ -149,4 +162,8 @@ export function startAudioServer(): Promise<number> {
 
 export function getAudioUrl(trackId: string): string {
   return `http://localhost:${port}/song/${trackId}`;
+}
+
+export function stopAudioServer(): void {
+  if (server) { server.close(); server = null; port = 0; }
 }
