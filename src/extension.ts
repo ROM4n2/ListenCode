@@ -520,6 +520,10 @@ function getWebviewHtml(webview: vscode.Webview, extensionUri: vscode.Uri): stri
       webview.asWebviewUri(vscode.Uri.joinPath(extensionUri, 'media', 'webview.css')).toString()
     )
     .replace(
+      'howler.core.min.js',
+      webview.asWebviewUri(vscode.Uri.joinPath(extensionUri, 'media', 'howler.core.min.js')).toString()
+    )
+    .replace(
       'webview.js',
       webview.asWebviewUri(vscode.Uri.joinPath(extensionUri, 'media', 'webview.js')).toString()
     );
