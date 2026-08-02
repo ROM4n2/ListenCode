@@ -122,6 +122,23 @@
     vscode.postMessage({ type: 'search', keyword, sources });
   }
 
+  // 探测音频 URL 是否可播放（HEAD 请求）
+  function diagnoseAudioUrl(url) {
+    return fetch(url, { method: 'HEAD' })
+      .then((resp) => {
+        const ct = resp.headers.get('Content-Type') || 'unknown';
+        const cl = resp.headers.get('Content-Length') || '?';
+        if (!resp.ok) {
+          return { ok: false, status: resp.status, error: 'server error', contentType: ct };
+        }
+        if (!ct.startsWith('audio/') && !ct.includes('mp4') && !ct.includes('m4a')) {
+          return { ok: false, status: resp.status, error: `bad content-type: ${ct}`, contentType: ct };
+        }
+        return { ok: true, status: resp.status, contentType: ct, size: cl };
+      })
+      .catch((err) => ({ ok: false, status: 0, error: err.message }));
+  }
+
   // 播放控制
   playPauseBtn.addEventListener('click', togglePlayPause);
   prevBtn.addEventListener('click', playPrev);
@@ -371,18 +388,26 @@
         break;
       case 'player:resolve':
         if (msg.url) {
-          // 暂停当前播放 → 设置新 URL → 播放
-          audioPlayer.pause();
-          audioPlayer.src = msg.url;
-          var p = audioPlayer.play();
-          if (p && p.then) {
-            p.then(() => {
-              playPauseBtn.textContent = '⏸';
-              sendPlayerState(true);
-            }).catch(() => {
-              // play() 被中断是正常的，忽略
-            });
-          }
+          // 先探测服务器响应，诊断 SRC_NOT_SUPPORTED
+          diagnoseAudioUrl(msg.url).then((info) => {
+            console.log('Audio diagnose:', info);
+            if (!info.ok) {
+              showError(`播放错误: ${info.error} (HTTP ${info.status})`);
+              return;
+            }
+            // 暂停当前播放 → 设置新 URL → 播放
+            audioPlayer.pause();
+            audioPlayer.src = msg.url;
+            var p = audioPlayer.play();
+            if (p && p.then) {
+              p.then(() => {
+                playPauseBtn.textContent = '⏸';
+                sendPlayerState(true);
+              }).catch(() => {
+                // play() 被中断是正常的，忽略
+              });
+            }
+          });
         } else {
           // 付费/版权失败，自动跳过下一首
           if (currentPlaylist.length > 1) {
