@@ -83,6 +83,7 @@ export function startAudioServer(): Promise<number> {
             headers['Referer'] = 'https://www.bilibili.com/';
           }
 
+          console.log(`[audio-server] downloading: ${url}`);
           const response = await axios.get(url, {
             responseType: 'stream',
             headers,
@@ -113,6 +114,28 @@ export function startAudioServer(): Promise<number> {
             res.writeHead(502, { 'Content-Type': 'text/plain' });
             res.end('Downloaded file is empty');
             return;
+          }
+
+          // 校验文件头：m4a/mp4 应以 ftyp 开头（偏移 4 字节）
+          if (stat.size >= 8) {
+            const fd = fs.openSync(cacheFile, 'r');
+            const buf = Buffer.alloc(8);
+            fs.readSync(fd, buf, 0, 8, 4);
+            fs.closeSync(fd);
+            const ftyp = buf.toString('ascii', 0, 4);
+            if (ftyp !== 'ftyp') {
+              console.error(`[audio-server] not a valid mp4/m4a file: ftyp=${ftyp}, size=${stat.size}, url=${url}`);
+              // 读取前 200 字节用于诊断
+              const headBuf = Buffer.alloc(Math.min(200, stat.size));
+              const fd2 = fs.openSync(cacheFile, 'r');
+              fs.readSync(fd2, headBuf, 0, headBuf.length, 0);
+              fs.closeSync(fd2);
+              console.error(`[audio-server] file head: ${headBuf.toString('utf8').replace(/[^\x20-\x7e]/g, '?')}`);
+              fs.unlinkSync(cacheFile);
+              res.writeHead(502, { 'Content-Type': 'text/plain' });
+              res.end('Downloaded file is not valid audio');
+              return;
+            }
           }
 
           console.log(`[audio-server] cached: ${trackId} (${stat.size} bytes)`);
