@@ -23,7 +23,8 @@
   const totalTimeEl = document.getElementById('totalTime');
   const currentTrackTitle = document.getElementById('currentTrackTitle');
   const currentTrackArtist = document.getElementById('currentTrackArtist');
-  const audioPlayer = document.getElementById('audioPlayer');
+  // Howler.js 播放器（参照 Listen1 的 player_thread.js）
+  let sound = null; // 当前 Howl 实例
 
   let currentTrack = null;
   let currentPlaylist = [];
@@ -158,68 +159,52 @@
       .catch((err) => ({ ok: false, status: 0, error: `server unreachable: ${err.message}` }));
   }
 
-  // 播放控制
+  // 播放控制（Howler.js 版，参照 Listen1）
   playPauseBtn.addEventListener('click', togglePlayPause);
   prevBtn.addEventListener('click', playPrev);
   nextBtn.addEventListener('click', playNext);
 
-  audioPlayer.addEventListener('timeupdate', () => {
-    if (audioPlayer.duration) {
-      const progress = (audioPlayer.currentTime / audioPlayer.duration) * 100;
-      progressBar.value = progress;
-      currentTimeEl.textContent = formatTime(audioPlayer.currentTime);
-    }
-  });
-
-  audioPlayer.addEventListener('loadedmetadata', () => {
-    totalTimeEl.textContent = formatTime(audioPlayer.duration);
-  });
-
-  audioPlayer.addEventListener('ended', () => {
-    playNext();
-  });
-
-  audioPlayer.addEventListener('error', () => {
-    const codeMap = { 1: 'ABORTED', 2: 'NETWORK', 3: 'DECODE', 4: 'SRC_NOT_SUPPORTED' };
-    const code = audioPlayer.error?.code;
-    console.log('Audio error:', code, codeMap[code] || '', audioPlayer.error?.message, 'src:', audioPlayer.currentSrc || audioPlayer.src);
-    showError('播放错误: ' + (codeMap[code] || `code=${code}`) + (audioPlayer.error?.message ? ` (${audioPlayer.error.message})` : ''));
-  });
-
-  audioPlayer.addEventListener('playing', () => {
-    console.log('Audio playing');
-  });
-
-  audioPlayer.addEventListener('canplay', () => {
-    console.log('Audio canplay, duration:', audioPlayer.duration);
-  });
+  // 进度更新定时器（Howler 没有 timeupdate 事件，用 setInterval 模拟）
+  let progressTimer = null;
+  function startProgressTimer() {
+    stopProgressTimer();
+    progressTimer = setInterval(() => {
+      if (sound && sound.playing()) {
+        const seek = sound.seek() || 0;
+        const duration = sound.duration() || 0;
+        if (duration) {
+          progressBar.value = (seek / duration) * 100;
+          currentTimeEl.textContent = formatTime(seek);
+        }
+      }
+    }, 250);
+  }
+  function stopProgressTimer() {
+    if (progressTimer) { clearInterval(progressTimer); progressTimer = null; }
+  }
 
   progressBar.addEventListener('input', () => {
-    if (audioPlayer.duration) {
-      audioPlayer.currentTime = (progressBar.value / 100) * audioPlayer.duration;
+    if (sound && sound.duration()) {
+      sound.seek((progressBar.value / 100) * sound.duration());
     }
   });
 
   volumeBar.addEventListener('input', () => {
-    audioPlayer.volume = volumeBar.value / 100;
+    if (sound) { sound.volume(volumeBar.value / 100); }
   });
 
   function togglePlayPause() {
-    if (!currentTrack) {return;}
-    if (audioPlayer.paused) {
-      var p = audioPlayer.play();
-      if (p && p.then) {
-        p.then(() => {
-          playPauseBtn.textContent = '⏸';
-          sendPlayerState(true);
-        }).catch(() => {
-          // play() 被 pause() 中断是正常的，忽略
-        });
-      }
-    } else {
-      audioPlayer.pause();
+    if (!sound) {return;}
+    if (sound.playing()) {
+      sound.pause();
       playPauseBtn.textContent = '▶';
       sendPlayerState(false);
+      stopProgressTimer();
+    } else {
+      sound.play();
+      playPauseBtn.textContent = '⏸';
+      sendPlayerState(true);
+      startProgressTimer();
     }
   }
 
@@ -323,8 +308,8 @@
           if (currentPlaylist.length === 0) {
             currentIndex = -1;
             currentTrack = null;
-            audioPlayer.pause();
-            audioPlayer.src = '';
+            if (sound) { sound.unload(); sound = null; }
+            stopProgressTimer();
             currentTrackTitle.textContent = '未播放';
             currentTrackArtist.textContent = '';
             playPauseBtn.textContent = '▶';
@@ -345,8 +330,8 @@
     currentPlaylist = [];
     currentIndex = -1;
     currentTrack = null;
-    audioPlayer.pause();
-    audioPlayer.src = '';
+    if (sound) { sound.unload(); sound = null; }
+    stopProgressTimer();
     currentTrackTitle.textContent = '未播放';
     currentTrackArtist.textContent = '';
     playPauseBtn.textContent = '▶';
@@ -407,26 +392,46 @@
         break;
       case 'player:resolve':
         if (msg.url) {
-          // 先探测服务器响应，诊断 SRC_NOT_SUPPORTED
-          diagnoseAudioUrl(msg.url).then((info) => {
-            console.log('Audio diagnose:', info);
-            if (!info.ok) {
-              showError(`播放错误: ${info.error} (HTTP ${info.status})`);
-              return;
-            }
-            // 暂停当前播放 → 设置新 URL → 播放
-            audioPlayer.pause();
-            audioPlayer.src = msg.url;
-            var p = audioPlayer.play();
-            if (p && p.then) {
-              p.then(() => {
-                playPauseBtn.textContent = '⏸';
-                sendPlayerState(true);
-              }).catch(() => {
-                // play() 被中断是正常的，忽略
-              });
-            }
+          // 卸载旧音频，用 Howler.js 加载（参照 Listen1 player_thread.js）
+          if (sound) { sound.unload(); sound = null; }
+          stopProgressTimer();
+
+          sound = new Howl({
+            src: [msg.url],
+            format: ['mp3', 'm4a', 'mp4', 'aac'], // 显式指定格式（参照 Listen1 issue #1200）
+            html5: true, // 强制 HTML5 流式播放
+            volume: volumeBar.value / 100,
+            onplay() {
+              playPauseBtn.textContent = '⏸';
+              sendPlayerState(true);
+              startProgressTimer();
+              // 更新总时长
+              const dur = sound.duration();
+              if (dur) { totalTimeEl.textContent = formatTime(dur); }
+            },
+            onpause() {
+              playPauseBtn.textContent = '▶';
+              sendPlayerState(false);
+              stopProgressTimer();
+            },
+            onend() {
+              playNext();
+            },
+            onload() {
+              const dur = sound.duration();
+              if (dur) { totalTimeEl.textContent = formatTime(dur); }
+            },
+            onloaderror(id, err) {
+              console.log('Howl loaderror:', id, err);
+              showError(`无法播放: ${currentTrack ? currentTrack.title : '未知歌曲'} (加载失败)`);
+              if (currentPlaylist.length > 1) { setTimeout(() => playNext(), 1000); }
+            },
+            onplayerror(id, err) {
+              console.log('Howl playerror:', id, err);
+              showError(`播放失败: ${currentTrack ? currentTrack.title : '未知歌曲'}`);
+            },
           });
+          sound.play();
         } else {
           // 付费/版权失败，自动跳过下一首
           if (currentPlaylist.length > 1) {
