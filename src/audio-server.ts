@@ -75,9 +75,11 @@ export function startAudioServer(): Promise<number> {
 
           const headers: Record<string, string> = {
             'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+            'Range': 'bytes=0-',
           };
           if (cookie) { headers['Cookie'] = cookie; }
-          if (url.includes('bilibili') || url.includes('bilivideo')) {
+          // B站 CDN (bilivideo/akamaized/szbdyd 等) 需要 Referer
+          if (url.includes('bilibili') || url.includes('bilivideo') || url.includes('akamaized') || url.includes('bdurl')) {
             headers['Referer'] = 'https://www.bilibili.com/';
           }
 
@@ -88,12 +90,32 @@ export function startAudioServer(): Promise<number> {
             maxContentLength: 100 * 1024 * 1024, // 最大 100MB
           });
 
+          // 检查响应状态，非 2xx/206 说明下载失败
+          if (response.status !== 200 && response.status !== 206) {
+            console.error(`[audio-server] download failed: HTTP ${response.status} for ${url}`);
+            res.writeHead(502, { 'Content-Type': 'text/plain' });
+            res.end(`Download failed: HTTP ${response.status}`);
+            return;
+          }
+
           const writer = fs.createWriteStream(cacheFile);
           response.data.pipe(writer);
           await new Promise<void>((res, rej) => {
             writer.on('finish', () => res());
             writer.on('error', rej);
           });
+
+          // 校验下载的文件非空
+          const stat = fs.statSync(cacheFile);
+          if (stat.size === 0) {
+            console.error(`[audio-server] downloaded file is empty: ${url}`);
+            fs.unlinkSync(cacheFile);
+            res.writeHead(502, { 'Content-Type': 'text/plain' });
+            res.end('Downloaded file is empty');
+            return;
+          }
+
+          console.log(`[audio-server] cached: ${trackId} (${stat.size} bytes)`);
 
           // 异步清理缓存
           cleanupCache();

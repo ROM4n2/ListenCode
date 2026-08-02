@@ -144,16 +144,18 @@
   });
 
   audioPlayer.addEventListener('error', () => {
-    console.log('Video error:', audioPlayer.error?.code, audioPlayer.error?.message);
-    showError('播放错误: ' + (audioPlayer.error?.message || '未知错误'));
+    const codeMap = { 1: 'ABORTED', 2: 'NETWORK', 3: 'DECODE', 4: 'SRC_NOT_SUPPORTED' };
+    const code = audioPlayer.error?.code;
+    console.log('Audio error:', code, codeMap[code] || '', audioPlayer.error?.message, 'src:', audioPlayer.currentSrc || audioPlayer.src);
+    showError('播放错误: ' + (codeMap[code] || `code=${code}`) + (audioPlayer.error?.message ? ` (${audioPlayer.error.message})` : ''));
   });
 
   audioPlayer.addEventListener('playing', () => {
-    console.log('Video playing');
+    console.log('Audio playing');
   });
 
   audioPlayer.addEventListener('canplay', () => {
-    console.log('Video canplay, duration:', audioPlayer.duration);
+    console.log('Audio canplay, duration:', audioPlayer.duration);
   });
 
   progressBar.addEventListener('input', () => {
