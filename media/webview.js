@@ -1,5 +1,6 @@
 (function () {
   const vscode = acquireVsCodeApi();
+  console.log('webview.js loaded, Howl:', typeof Howl);
 
   const searchInput = document.getElementById('searchInput');
   const platformSelect = document.getElementById('platformSelect');
