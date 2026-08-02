@@ -42,6 +42,7 @@ export function startAudioServer(): Promise<number> {
       res.setHeader('Access-Control-Allow-Origin', '*');
       res.setHeader('Access-Control-Allow-Methods', 'GET, HEAD, OPTIONS');
       res.setHeader('Access-Control-Allow-Headers', 'Range');
+      res.setHeader('Access-Control-Expose-Headers', 'Content-Range, Content-Length, Accept-Ranges');
 
       if (req.method === 'OPTIONS') {
         res.writeHead(204);
