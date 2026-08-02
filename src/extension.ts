@@ -511,8 +511,8 @@ function getWebviewHtml(webview: vscode.Webview, extensionUri: vscode.Uri): stri
   const htmlPath = vscode.Uri.joinPath(extensionUri, 'media', 'webview.html');
   let html = fs.readFileSync(htmlPath.fsPath, 'utf8');
 
-  // 注入 CSP，限制 WebView 只能加载同源/VSCode 资源与已知音频源
-  html = html.replace('<head>', `<head><meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'unsafe-inline' vscode-resource:; style-src 'unsafe-inline' vscode-resource:; img-src https: vscode-resource:; media-src https: http: vscode-resource:; connect-src https: http:;">`);
+  // 注入 CSP（参照 vsc-netease-music 的 CSP 设置）
+  html = html.replace('<head>', `<head><meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'unsafe-inline' vscode-resource:; style-src 'unsafe-inline' vscode-resource:; img-src https: vscode-resource:; media-src * vscode-resource: blob:; connect-src https: http:;">`);
 
   return html
     .replace(
