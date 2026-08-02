@@ -38,6 +38,24 @@ export function startAudioServer(): Promise<number> {
 
   return new Promise((resolve) => {
     server = http.createServer(async (req, res) => {
+      // CORS 头（WebView 跨域请求需要）
+      res.setHeader('Access-Control-Allow-Origin', '*');
+      res.setHeader('Access-Control-Allow-Methods', 'GET, HEAD, OPTIONS');
+      res.setHeader('Access-Control-Allow-Headers', 'Range');
+
+      if (req.method === 'OPTIONS') {
+        res.writeHead(204);
+        res.end();
+        return;
+      }
+
+      // 诊断端点
+      if (req.url === '/ping') {
+        res.writeHead(200, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ ok: true, port }));
+        return;
+      }
+
       const match = (req.url || '').match(/^\/song\/(.+)/);
       if (!match) {
         res.writeHead(404);
@@ -196,6 +214,7 @@ export function startAudioServer(): Promise<number> {
       if (addr && typeof addr === 'object') {
         port = addr.port;
       }
+      console.log(`[audio-server] started on http://127.0.0.1:${port}`);
       resolve(port);
     });
   });

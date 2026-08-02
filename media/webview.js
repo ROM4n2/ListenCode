@@ -122,21 +122,33 @@
     vscode.postMessage({ type: 'search', keyword, sources });
   }
 
-  // 探测音频 URL 是否可播放（HEAD 请求）
+  // 探测音频 URL 是否可播放
   function diagnoseAudioUrl(url) {
-    return fetch(url, { method: 'HEAD' })
-      .then((resp) => {
-        const ct = resp.headers.get('Content-Type') || 'unknown';
-        const cl = resp.headers.get('Content-Length') || '?';
-        if (!resp.ok) {
-          return { ok: false, status: resp.status, error: 'server error', contentType: ct };
+    // 先探测 /ping 确认服务器可达
+    const baseUrl = url.substring(0, url.indexOf('/song/'));
+    return fetch(`${baseUrl}/ping`)
+      .then((pingResp) => {
+        if (!pingResp.ok) {
+          return { ok: false, status: 0, error: 'server not responding to /ping' };
         }
-        if (!ct.startsWith('audio/') && !ct.includes('mp4') && !ct.includes('m4a')) {
-          return { ok: false, status: resp.status, error: `bad content-type: ${ct}`, contentType: ct };
-        }
-        return { ok: true, status: resp.status, contentType: ct, size: cl };
+        return pingResp.json();
       })
-      .catch((err) => ({ ok: false, status: 0, error: err.message }));
+      .then((info) => {
+        if (!info.ok) {
+          return { ok: false, status: 0, error: 'server ping failed' };
+        }
+        // 再用 HEAD 检查实际音频资源
+        return fetch(url, { method: 'HEAD' })
+          .then((resp) => {
+            const ct = resp.headers.get('Content-Type') || 'unknown';
+            if (!resp.ok) {
+              return { ok: false, status: resp.status, error: 'server error', contentType: ct };
+            }
+            return { ok: true, status: resp.status, contentType: ct, serverPort: info.port };
+          })
+          .catch((err) => ({ ok: false, status: 0, error: `HEAD failed: ${err.message}` }));
+      })
+      .catch((err) => ({ ok: false, status: 0, error: `server unreachable: ${err.message}` }));
   }
 
   // 播放控制
