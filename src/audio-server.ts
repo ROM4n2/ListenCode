@@ -63,24 +63,34 @@ async function proxyTrack(trackId: string, req: http.IncomingMessage, res: http.
 
   console.log(`[audio-server] proxy: ${trackId} → ${url}`);
 
-  const response = await axios.get(url, {
-    responseType: 'stream',
-    headers,
-    timeout: 60000,
-    maxContentLength: 100 * 1024 * 1024,
-  });
+  try {
+    const response = await axios.get(url, {
+      responseType: 'stream',
+      headers,
+      timeout: 60000,
+      maxContentLength: 100 * 1024 * 1024,
+    });
 
-  // 透传 CDN 响应头（参照 vsc-netease-music 的 res.writeHead(response.statusCode, response.headers)）
-  const respHeaders: Record<string, string> = {};
-  for (const [key, value] of Object.entries(response.headers)) {
-    if (value !== undefined) {
-      respHeaders[key] = Array.isArray(value) ? value.join(', ') : String(value);
+    console.log(`[audio-server] CDN response: ${response.status} ${response.headers['content-type']} ${response.headers['content-length']}`);
+
+    // 透传 CDN 响应头（参照 vsc-netease-music 的 res.writeHead(response.statusCode, response.headers)）
+    const respHeaders: Record<string, string> = {};
+    for (const [key, value] of Object.entries(response.headers)) {
+      if (value !== undefined) {
+        respHeaders[key] = Array.isArray(value) ? value.join(', ') : String(value);
+      }
+    }
+    res.writeHead(response.status, respHeaders);
+
+    // 流式管道直传（不落盘）
+    response.data.pipe(res);
+  } catch (e: any) {
+    console.error(`[audio-server] proxy failed: ${e.message}, code=${e.response?.status}`);
+    if (!res.headersSent) {
+      res.writeHead(502, { 'Content-Type': 'text/plain' });
+      res.end(`CDN error: ${e.message}`);
     }
   }
-  res.writeHead(response.status, respHeaders);
-
-  // 流式管道直传（不落盘）
-  response.data.pipe(res);
 }
 
 export function startAudioServer(): Promise<number> {
