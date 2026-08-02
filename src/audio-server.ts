@@ -56,6 +56,9 @@ export function startAudioServer(): Promise<number> {
         return;
       }
 
+      // 记录所有请求（诊断用）
+      console.log(`[audio-server] ${req.method} ${req.url} Range=${req.headers.range || '-'}`);
+
       const match = (req.url || '').match(/^\/song\/(.+)/);
       if (!match) {
         res.writeHead(404);

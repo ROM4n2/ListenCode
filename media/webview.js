@@ -137,16 +137,23 @@
         if (!info.ok) {
           return { ok: false, status: 0, error: 'server ping failed' };
         }
-        // 再用 HEAD 检查实际音频资源
-        return fetch(url, { method: 'HEAD' })
-          .then((resp) => {
-            const ct = resp.headers.get('Content-Type') || 'unknown';
-            if (!resp.ok) {
-              return { ok: false, status: resp.status, error: 'server error', contentType: ct };
+        // GET 前 8 字节验证 ftyp 魔数
+        return fetch(url, { headers: { 'Range': 'bytes=0-7' } })
+          .then(async (resp) => {
+            if (!resp.ok && resp.status !== 206) {
+              return { ok: false, status: resp.status, error: `server error ${resp.status}` };
             }
-            return { ok: true, status: resp.status, contentType: ct, serverPort: info.port };
+            const buf = await resp.arrayBuffer();
+            const bytes = new Uint8Array(buf);
+            // m4a/mp4: 前 4 字节是 size，后 4 字节是 'ftyp'
+            const ftyp = String.fromCharCode(bytes[4], bytes[5], bytes[6], bytes[7]);
+            if (ftyp !== 'ftyp') {
+              const head = String.fromCharCode(...bytes);
+              return { ok: false, status: 0, error: `not mp4/m4a: ftyp=${ftyp} head=${head}` };
+            }
+            return { ok: true, status: resp.status, ftyp, serverPort: info.port };
           })
-          .catch((err) => ({ ok: false, status: 0, error: `HEAD failed: ${err.message}` }));
+          .catch((err) => ({ ok: false, status: 0, error: `GET failed: ${err.message}` }));
       })
       .catch((err) => ({ ok: false, status: 0, error: `server unreachable: ${err.message}` }));
   }
