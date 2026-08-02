@@ -115,9 +115,13 @@ export async function getPlayUrl(trackId: string): Promise<string | null> {
 
   const dash = playResp.data.data?.dash;
   if (dash?.audio?.length) {
-    // 按带宽降序，取最高质量音频流
-    const audio = [...dash.audio].sort((a, b) => b.bandwidth - a.bandwidth)[0];
-    return audio.baseUrl;
+    // 优先选择标准 AAC-LC (mp4a.40.2) 编码，Chromium 原生支持
+    // 避免 HE-AAC / Hi-Res 等编码导致 FFmpegDemuxer 无法解码
+    const aac = dash.audio.find(a => a.codecs === 'mp4a.40.2');
+    if (aac) { return aac.baseUrl; }
+    // 无标准 AAC 时取最低质量（通常兼容性最好）
+    const sorted = [...dash.audio].sort((a, b) => a.bandwidth - b.bandwidth);
+    return sorted[0].baseUrl;
   }
 
   // 回退：旧版 durl MP4（音视频合并）
